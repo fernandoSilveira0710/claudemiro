@@ -212,27 +212,22 @@ export function ChatInterface() {
   }
 
   // Chat view
-  const modeInfo = MODE_OPTIONS.find(o => o.id === mode)!
-
   return (
     <div className="min-h-screen bg-[#0D0221] flex flex-col">
       {/* Header */}
-      <header className="border-b border-white/[0.06] p-4 flex items-center justify-between bg-[#0D0221]/80 backdrop-blur-xl sticky top-0 z-10">
+      <header className="border-b border-white/[0.06] p-3 flex items-center justify-between bg-[#0D0221]/80 backdrop-blur-xl sticky top-0 z-10">
+        <a href="/" className="text-sm font-bold tracking-tight text-[#F3E8FF]/30 hover:text-white transition" style={{ fontFamily: "'DM Sans', sans-serif" }}>← CLAUDEMIRO</a>
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 flex items-center justify-center claude-bot-glow -ml-2">
-            <ClaudemiroBot />
-          </div>
-          <div>
-            <h1 className="font-bold text-white text-sm">Claudemiro</h1>
-            <span className="text-xs text-[#F3E8FF]/30">
-              {modeInfo.icon} Modo {modeInfo.label}
-            </span>
-          </div>
+          <span className="text-[10px] bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full font-medium">online</span>
         </div>
-        <span className="text-xs bg-green-500/15 text-green-400 px-2.5 py-1 rounded-full font-medium">
-          online
-        </span>
       </header>
+
+      {/* Robô centralizado */}
+      <div className="flex justify-center pt-6 pb-2">
+        <div className="w-24 h-24 flex items-center justify-center claude-bot-glow">
+          <ClaudemiroBot />
+        </div>
+      </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full">
