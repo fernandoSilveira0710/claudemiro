@@ -1,57 +1,88 @@
 'use client'
 
+import { useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
-
-const floatingElements = [
-  { emoji: '🔮', delay: 0, x: '10%', y: '15%' },
-  { emoji: '👁️', delay: 1, x: '85%', y: '20%' },
-  { emoji: '💜', delay: 2, x: '15%', y: '75%' },
-  { emoji: '✨', delay: 0.5, x: '80%', y: '70%' },
-  { emoji: '🎯', delay: 1.5, x: '50%', y: '85%' },
-  { emoji: '🃏', delay: 3, x: '5%', y: '45%' },
-]
+import { ParallaxIcons } from '@/components/parallax-icons'
+import { FloatingVeredicts } from '@/components/floating-veredicts'
+import { StatusTerminal } from '@/components/status-terminal'
+import { NetworkBadges } from '@/components/network-badges'
 
 export default function LoginPage() {
   const supabase = createClient()
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  // Matrix background
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}[]|/\\!@#$%&*()_+-=<>'.split('')
+    const fontSize = 10
+    const columns = Math.floor(canvas.width / fontSize)
+    const drops: number[] = Array(columns).fill(1)
+
+    ctx.fillStyle = 'rgba(13, 2, 33, 0.02)'
+
+    const draw = () => {
+      ctx.fillStyle = 'rgba(13, 2, 33, 0.03)'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.06)'
+      ctx.font = `${fontSize}px monospace`
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = chars[Math.floor(Math.random() * chars.length)]
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize)
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+          drops[i] = 0
+        }
+        drops[i]++
+      }
+    }
+
+    const interval = setInterval(draw, 50)
+    const handleResize = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   const handleGoogleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${location.origin}/auth/callback`,
-      },
+      options: { redirectTo: `${location.origin}/auth/callback` },
     })
   }
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#0D0221]">
-      {/* Background glow */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-[128px]" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-600/10 rounded-full blur-[128px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[200px]" />
-      </div>
+      {/* Matrix Canvas */}
+      <canvas ref={canvasRef} className="absolute inset-0 z-0 opacity-30 pointer-events-none" />
 
-      {/* Floating emojis */}
-      {floatingElements.map((el, i) => (
-        <motion.div
-          key={i}
-          className="absolute text-2xl select-none pointer-events-none opacity-30"
-          style={{ left: el.x, top: el.y }}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.1, 1], y: [0, -20, 0] }}
-          transition={{
-            delay: el.delay,
-            duration: 4,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        >
-          {el.emoji}
-        </motion.div>
-      ))}
+      {/* Parallax icons */}
+      <ParallaxIcons />
+
+      {/* Floating veredicts */}
+      <FloatingVeredicts />
+
+      {/* Background glow */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[128px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-pink-600/8 rounded-full blur-[128px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-500/3 rounded-full blur-[200px]" />
+      </div>
 
       {/* Main card */}
       <motion.div
@@ -60,8 +91,8 @@ export default function LoginPage() {
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-10 w-full max-w-md mx-4"
       >
-        <div className="glass p-8 sm:p-10 text-center space-y-8">
-          {/* Logo / Mascot — Robô que segue o mouse */}
+        <div className="glass p-6 sm:p-10 text-center space-y-6 sm:space-y-8 max-w-full sm:max-w-md">
+          {/* Robô */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -71,13 +102,13 @@ export default function LoginPage() {
             <ClaudemiroBot />
           </motion.div>
 
-          {/* Title */}
+          {/* Título */}
           <div className="space-y-3">
             <motion.h1
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="text-6xl sm:text-7xl font-black text-white tracking-tight"
+              className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-none text-center w-full"
               style={{ fontFamily: "'DM Sans', sans-serif" }}
             >
               CLAUDEMIRO
@@ -87,31 +118,23 @@ export default function LoginPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="text-lg text-[#F3E8FF]/60 max-w-xs mx-auto"
+              className="text-sm text-[#F3E8FF]/50 max-w-xs mx-auto"
             >
               O oráculo que escaneia suas redes e revela quem
               <span className="text-purple-400 font-bold"> você é de verdade</span>
             </motion.p>
           </div>
 
-          {/* Features pills */}
+          {/* Badges pulsantes com ícones SVG */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="flex flex-wrap justify-center gap-2"
           >
-            {['Instagram', 'Spotify', 'Steam', 'TikTok'].map((f) => (
-              <span
-                key={f}
-                className="text-xs font-medium px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[#F3E8FF]/50"
-              >
-                {f}
-              </span>
-            ))}
+            <NetworkBadges />
           </motion.div>
 
-          {/* CTA Button */}
+          {/* Botão */}
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -138,21 +161,33 @@ export default function LoginPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8 }}
-            className="text-sm text-[#F3E8FF]/30"
+            className="text-xs text-[#F3E8FF]/25"
           >
-            Ao entrar, você concorda em ser <span className="text-purple-400/50">julgado implacavelmente</span>
+            Ao entrar, você será <span className="text-purple-400/40">julgado implacavelmente</span>
           </motion.p>
         </div>
       </motion.div>
 
-      {/* Bottom text */}
+      {/* Status Terminal */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2 }}
+        className="fixed bottom-4 left-4 z-20 hidden md:block"
+      >
+        <div className="glass-card p-3 text-[#F3E8FF]/40">
+          <StatusTerminal />
+        </div>
+      </motion.div>
+
+      {/* Bottom domain */}
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1 }}
-        className="absolute bottom-6 text-xs text-[#F3E8FF]/20"
+        transition={{ delay: 1.5 }}
+        className="fixed bottom-4 right-4 text-xs text-[#F3E8FF]/15 z-20 pointer-events-none"
       >
-        claudemiro.app — em breve
+        claudemiro.app
       </motion.p>
     </div>
   )
