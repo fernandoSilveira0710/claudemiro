@@ -232,3 +232,41 @@
   20% { --mh: .5; }
   60% { --mw: .7; }
 }
+
+/* Animação de flutuação para vereditos e ícones */
+@keyframes veredict-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+
+.animate-veredict-float {
+  animation: veredict-float 4s ease-in-out infinite;
+}
+
+/* Cursor piscando do terminal */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.terminal-cursor {
+  animation: cursor-blink 1s step-end infinite;
+  color: #A855F7;
+  font-weight: bold;
+}
+
+@keyframes fadeInLine {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Glow pulsante no robô */
+.claude-bot-glow {
+  filter: drop-shadow(0 0 12px rgba(168, 85, 247, 0.5));
+  animation: bot-glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes bot-glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 12px rgba(168, 85, 247, 0.4)); }
+  50% { filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.7)); }
+}

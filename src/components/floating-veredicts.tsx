@@ -35,11 +35,11 @@ export function FloatingVeredicts() {
   }, [])
 
   const positions = [
-    'right-4 top-20',
-    'left-4 top-40',
-    'right-6 top-60',
-    'left-6 top-72',
-    'right-8 top-[45%]',
+    'right-8 top-24',
+    'left-8 top-44',
+    'right-10 top-[55%]',
+    'left-10 top-[68%]',
+    'right-12 top-[42%]',
   ]
 
   return (
@@ -54,9 +54,9 @@ export function FloatingVeredicts() {
               transition={{ duration: 0.6, ease: 'easeOut' }}
               className={`fixed ${positions[i]} z-0 hidden lg:block pointer-events-none max-w-[200px]`}
             >
-              <div className="glass-card p-3 text-left">
+              <div className="glass-card p-3 text-left bg-[#1A0A33]/80 border-purple-500/15 animate-veredict-float">
                 <p className="text-purple-400 text-xs font-bold mb-1">{v.user}</p>
-                <p className="text-[#F3E8FF]/50 text-[10px] leading-relaxed italic">
+                <p className="text-[#F3E8FF]/65 text-[10px] leading-relaxed italic">
                   &ldquo;{v.text}&rdquo;
                 </p>
               </div>

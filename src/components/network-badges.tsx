@@ -9,7 +9,7 @@ const NETWORKS = [
 
 export function NetworkBadges() {
   return (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="grid grid-cols-2 gap-2 max-w-[280px] mx-auto">
       {NETWORKS.map((net, i) => (
         <span
           key={net.name}

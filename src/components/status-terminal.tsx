@@ -28,8 +28,8 @@ export function StatusTerminal() {
       if (linesRef.current.length > 6) linesRef.current.shift()
 
       terminalRef.current.innerHTML = linesRef.current
-        .map(l => `<div class="terminal-line">[<span class="text-purple-400">CLAUDEMIRO</span>]: ${l.text}</div>`)
-        .join('')
+        .map((l, idx) => `<div class="terminal-line" style="animation: fadeInLine 0.4s ease-out ${idx === linesRef.current.length - 1 ? '0s' : '0s'} both">[<span class="text-purple-400">CLAUDEMIRO</span>]: ${l.text}</div>`)
+        .join('') + '<span class="terminal-cursor">_</span>'
 
       i++
     }, 2800)

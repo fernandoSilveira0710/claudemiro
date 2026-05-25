@@ -97,7 +97,7 @@ export default function LoginPage() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="relative mx-auto w-28 h-28 flex items-center justify-center"
+            className="relative mx-auto w-28 h-28 flex items-center justify-center claude-bot-glow"
           >
             <ClaudemiroBot />
           </motion.div>
