@@ -21,16 +21,20 @@ export default async function HomePage() {
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
 
-  const { count: connectionsCount } = await supabase
+  const { data: connections } = await supabase
     .from('social_connections')
-    .select('*', { count: 'exact', head: true })
+    .select('platform')
     .eq('user_id', user.id)
+
+  const connectionsCount = connections?.length || 0
+  const connectionPlatforms = connections?.map(c => c.platform) || []
 
   return (
     <DashboardPage
       profile={profile}
       vereditsCount={vereditsCount || 0}
-      connectionsCount={connectionsCount || 0}
+      connectionsCount={connectionsCount}
+      connectionPlatforms={connectionPlatforms}
     />
   )
 }
