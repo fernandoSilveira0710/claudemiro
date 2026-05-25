@@ -149,10 +149,18 @@ export default function ConnectPage() {
                 </div>
 
                 {connected && (
-                  <div className="text-xs text-[#F3E8FF]/25 space-y-0.5 mb-2">
-                    {conn.platform_username && <p>👤 {conn.platform_username}</p>}
+                  <div className="text-xs text-[#F3E8FF]/25 space-y-1 mb-2">
+                    {conn.raw_data?.profile?.avatarfull && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <img src={conn.raw_data.profile.avatarfull} alt="" className="w-6 h-6 rounded-full" />
+                        <span>{conn.platform_username}</span>
+                      </div>
+                    )}
+                    {!conn.raw_data?.profile?.avatarfull && conn.platform_username && (
+                      <p>👤 {conn.platform_username}</p>
+                    )}
                     {p.id === 'steam' && conn.raw_data?.games && (
-                      <p>🎮 {conn.raw_data.games.length} jogos · {Math.round(conn.raw_data.games.reduce((s: number, g: any) => s + (g.playtime_forever || 0), 0) / 60)}h</p>
+                      <p>🎮 {Math.round(conn.raw_data.games.reduce((s: number, g: any) => s + (g.playtime_forever || 0), 0) / 60)}h de jogo</p>
                     )}
                     {p.id === 'discord' && conn.raw_data?.guilds && (
                       <p>💬 {conn.raw_data.guilds.length} servidores</p>

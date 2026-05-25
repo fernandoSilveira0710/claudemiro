@@ -66,5 +66,8 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/connect?error=discord_db', process.env.NEXT_PUBLIC_APP_URL))
   }
 
-  return NextResponse.redirect(new URL('/connect?success=discord', process.env.NEXT_PUBLIC_APP_URL))
+  return new Response(
+    `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=/connect?success=discord"></head><body><p>Conectado! Redirecionando...</p></body></html>`,
+    { headers: { 'Content-Type': 'text/html' } }
+  )
 }
