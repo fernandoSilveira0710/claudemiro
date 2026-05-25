@@ -7,18 +7,21 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { url } = await request.json()
-  const match = url?.match(/linkedin\.com\/in\/([^/?]+)/)
+  const match = url?.match(/linkedin\.com\/in\/([^/?\s]+)/)
   const username = match?.[1]
   if (!username) return NextResponse.json({ error: 'URL inválida. Use linkedin.com/in/fulano' }, { status: 400 })
 
   try {
     const res = await fetch(
-      `https://api.scrapecreators.com/v1/linkedin/profile?handle=${username}`,
+      `https://api.scrapecreators.com/v1/linkedin/profile?url=${encodeURIComponent(`https://linkedin.com/in/${username}`)}`,
       { headers: { 'x-api-key': process.env.SCRAPECREATORS_API_KEY! } }
     )
 
     const json = await res.json()
-    if (!json.success || !json.data) {
+    if (!json.success) {
+      if (json.message?.includes('private')) {
+        return NextResponse.json({ error: 'Perfil privado ou não disponível publicamente', needsManual: true }, { status: 422 })
+      }
       return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 })
     }
 

@@ -45,7 +45,6 @@ const PLATFORMS = [
   { id: 'tiktok', name: 'TikTok', bg: 'bg-gray-500/10', oauth: false },
   { id: 'x', name: 'X / Twitter', bg: 'bg-gray-500/10', oauth: false },
   { id: 'github', name: 'GitHub', bg: 'bg-purple-600/10', oauth: false },
-  { id: 'linkedin', name: 'LinkedIn', bg: 'bg-blue-500/10', oauth: false },
   { id: 'reddit', name: 'Reddit', bg: 'bg-orange-600/10', oauth: false },
 ]
 
@@ -365,6 +364,13 @@ export default function ConnectPage() {
                         <p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p>
                         <p>📦 {parseInt(conn.raw_data.repos || 0).toLocaleString()} repositórios</p>
                         {conn.raw_data.updated_at && <p>🕐 Ativo {new Date(conn.raw_data.updated_at).toLocaleDateString('pt-BR')}</p>}
+                      </div>
+                    )}
+                    {p.id === 'reddit' && conn.raw_data?.followers !== undefined && (
+                      <div>
+                        <p>⬆️ {parseInt(conn.raw_data.link_karma || 0).toLocaleString()} karma posts</p>
+                        <p>💬 {parseInt(conn.raw_data.comment_karma || 0).toLocaleString()} karma comentários</p>
+                        {conn.raw_data.created_utc && <p>🕐 Desde {new Date(conn.raw_data.created_utc * 1000).toLocaleDateString('pt-BR')}</p>}
                       </div>
                     )}
                   </div>

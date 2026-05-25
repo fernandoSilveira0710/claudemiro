@@ -1,5 +1,5 @@
 import { createServerSupabase } from '@/lib/supabase/server'
-import { chatCompletion } from '@/lib/deepseek'
+import { chatCompletion } from '@/lib/ai'
 import { scanUserData } from '@/lib/scanner'
 import { NextResponse } from 'next/server'
 
