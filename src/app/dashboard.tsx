@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { createClient } from '@/lib/supabase/client'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
 
 interface DashboardProps {
@@ -11,7 +12,13 @@ interface DashboardProps {
 }
 
 export function DashboardPage({ profile, vereditsCount, connectionsCount }: DashboardProps) {
+  const supabase = createClient()
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    window.location.href = '/auth/login'
+  }
 
   // Matrix background
   useEffect(() => {
@@ -59,10 +66,9 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount }: Dash
           CLAUDEMIRO
         </h1>
         <div className="flex items-center gap-3">
-          <span className="text-xs bg-purple-500/15 text-purple-300 px-3 py-1 rounded-full font-medium">
-            {profile.plan}
-          </span>
+          <span className="text-xs bg-purple-500/15 text-purple-300 px-3 py-1 rounded-full font-medium">{profile.plan}</span>
           <span className="text-[#F3E8FF]/40 text-sm">@{profile.username}</span>
+          <button onClick={handleLogout} className="text-[#F3E8FF]/20 hover:text-red-400 text-xs transition ml-2">Sair</button>
         </div>
       </header>
 

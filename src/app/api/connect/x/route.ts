@@ -9,53 +9,43 @@ export async function POST(request: Request) {
   const { url } = await request.json()
   if (!url) return NextResponse.json({ error: 'URL obrigatória' }, { status: 400 })
 
-  const match = url.match(/instagram\.com\/([^/?]+)/)
+  const match = url.match(/(?:twitter\.com|x\.com)\/([^/?]+)/)
   const username = match?.[1]
   if (!username) return NextResponse.json({ error: 'URL inválida' }, { status: 400 })
 
   try {
     const res = await fetch(
-      `https://api.scrapecreators.com/v1/instagram/profile?handle=${username}`,
+      `https://api.scrapecreators.com/v1/twitter/profile?handle=${username}`,
       { headers: { 'x-api-key': process.env.SCRAPECREATORS_API_KEY! } }
     )
 
-    if (!res.ok) {
-      return NextResponse.json({ error: 'API indisponível no momento' }, { status: 502 })
-    }
-
     const json = await res.json()
-    if (!json.success || !json.data?.user) {
-      return NextResponse.json({ error: 'Perfil não encontrado ou privado' }, { status: 404 })
+    if (!json.success) {
+      return NextResponse.json({ error: 'Perfil não encontrado' }, { status: 404 })
     }
 
-    const d = json.data.user
-
+    const legacy = json.legacy || {}
     const profileData = {
-      name: d.full_name,
-      bio: d.biography,
-      followers: d.edge_followed_by?.count || 0,
-      following: d.edge_follow?.count || 0,
-      posts: d.edge_owner_to_timeline_media?.count || 0,
-      avatar_url: d.profile_pic_url_hd || d.profile_pic_url,
-      is_private: d.is_private,
-      is_verified: d.is_verified,
+      name: legacy.name || json.name,
+      username: legacy.screen_name || username,
+      followers: legacy.followers_count || 0,
+      following: legacy.friends_count || 0,
+      tweets: legacy.statuses_count || 0,
+      verified: legacy.verified || false,
+      bio: legacy.description || '',
+      avatar_url: json.profile_image_url_https || legacy.profile_image_url_https,
     }
 
     await supabase.from('social_connections').upsert({
       user_id: user.id,
-      platform: 'instagram',
-      platform_user_id: username,
+      platform: 'x',
+      platform_user_id: json.rest_id || legacy.id_str,
       platform_username: username,
       raw_data: profileData,
       last_synced_at: new Date().toISOString(),
     }, { onConflict: 'user_id,platform' })
 
-    return NextResponse.json({
-      success: true,
-      username,
-      ...profileData,
-      credits: json.credits_remaining,
-    })
+    return NextResponse.json({ success: true, ...profileData, credits: json.credits_remaining })
   } catch (err: any) {
     return NextResponse.json({ error: `Erro: ${err.message}` }, { status: 500 })
   }

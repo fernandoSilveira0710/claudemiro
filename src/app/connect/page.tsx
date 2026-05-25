@@ -23,6 +23,14 @@ const COLORS: Record<string, string> = {
   youtube: '#FF0000', instagram: '#E4405F', tiktok: '#FFFFFF', x: '#FFFFFF', facebook: '#0866FF',
 }
 
+function proxyImage(url: string): string {
+  if (!url) return ''
+  if (url.includes('cdninstagram.com') || url.includes('fbcdn.net')) {
+    return `/api/proxy?url=${encodeURIComponent(url)}`
+  }
+  return url
+}
+
 const PLATFORMS = [
   { id: 'spotify', name: 'Spotify', bg: 'bg-green-500/10', oauth: true },
   { id: 'steam', name: 'Steam', bg: 'bg-blue-500/10', oauth: false },
@@ -43,6 +51,10 @@ export default function ConnectPage() {
   const [showSteam, setShowSteam] = useState(false)
   const [showInstagram, setShowInstagram] = useState(false)
   const [instagramUrl, setInstagramUrl] = useState('')
+  const [showTiktok, setShowTiktok] = useState(false)
+  const [tiktokUrl, setTiktokUrl] = useState('')
+  const [showX, setShowX] = useState(false)
+  const [xUrl, setXUrl] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -78,6 +90,8 @@ export default function ConnectPage() {
     else if (platformId === 'youtube') window.location.href = '/api/auth/youtube'
     else if (platformId === 'steam') setShowSteam(true)
     else if (platformId === 'instagram') setShowInstagram(true)
+    else if (platformId === 'tiktok') setShowTiktok(true)
+    else if (platformId === 'x') setShowX(true)
     else if (platformId === 'facebook') window.location.href = '/api/auth/facebook'
   }
 
@@ -96,6 +110,32 @@ export default function ConnectPage() {
     const data = await res.json()
     if (data.success) { setSteamId(''); setShowSteam(false); loadConnections() }
     else toast.error('Steam ID não encontrado')
+    setConnecting('')
+  }
+
+  const handleTiktokConnect = async () => {
+    if (!tiktokUrl) return
+    setConnecting('tiktok')
+    const res = await fetch('/api/connect/tiktok', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: tiktokUrl }),
+    })
+    const data = await res.json()
+    if (data.success) { setTiktokUrl(''); setShowTiktok(false); loadConnections(); toast.success('TikTok conectado!') }
+    else toast.error(data.error || 'Erro ao conectar')
+    setConnecting('')
+  }
+
+  const handleXConnect = async () => {
+    if (!xUrl) return
+    setConnecting('x')
+    const res = await fetch('/api/connect/x', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: xUrl }),
+    })
+    const data = await res.json()
+    if (data.success) { setXUrl(''); setShowX(false); loadConnections(); toast.success('X conectado!') }
+    else toast.error(data.error || 'Erro ao conectar')
     setConnecting('')
   }
 
@@ -142,6 +182,24 @@ export default function ConnectPage() {
           </motion.div>
         )}
 
+        {showTiktok && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
+            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#FFFFFF"><path d={SVG_PATHS.tiktok}/></svg>
+            <Input value={tiktokUrl} onChange={e => setTiktokUrl(e.target.value)} placeholder="URL do perfil (tiktok.com/@fulano)" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleTiktokConnect()} autoFocus />
+            <button onClick={handleTiktokConnect} disabled={!tiktokUrl || connecting === 'tiktok'} className="bg-gray-600 hover:bg-gray-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'tiktok' ? '...' : 'OK'}</button>
+            <button onClick={() => setShowTiktok(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
+          </motion.div>
+        )}
+
+        {showX && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
+            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#FFFFFF"><path d={SVG_PATHS.x}/></svg>
+            <Input value={xUrl} onChange={e => setXUrl(e.target.value)} placeholder="URL do perfil (x.com/fulano)" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleXConnect()} autoFocus />
+            <button onClick={handleXConnect} disabled={!xUrl || connecting === 'x'} className="bg-gray-600 hover:bg-gray-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'x' ? '...' : 'OK'}</button>
+            <button onClick={() => setShowX(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
+          </motion.div>
+        )}
+
         {showSteam && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
             <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#1B2838"><path d={SVG_PATHS.steam}/></svg>
@@ -180,7 +238,7 @@ export default function ConnectPage() {
                   <div className="text-xs text-[#F3E8FF]/25 space-y-1 mb-2">
                     {(conn.raw_data?.profile?.avatarfull || conn.raw_data?.avatar_url) && (
                       <div className="flex items-center gap-2 mb-1">
-                        <img src={conn.raw_data.profile?.avatarfull || conn.raw_data.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                        <img src={proxyImage(conn.raw_data.profile?.avatarfull || conn.raw_data.avatar_url)} alt="" className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                         <span>{conn.platform_username}</span>
                       </div>
                     )}
@@ -204,7 +262,10 @@ export default function ConnectPage() {
                       <p>📺 {conn.raw_data.follows.length} canais seguidos</p>
                     )}
                     {p.id === 'instagram' && conn.raw_data?.followers && (
-                      <p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p>
+                      <div>
+                        <p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p>
+                        <p>👤 Seguindo {parseInt(conn.raw_data.following || 0).toLocaleString()}</p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -219,6 +280,10 @@ export default function ConnectPage() {
                   <button onClick={() => setShowSteam(true)} className="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar Steam</button>
                 ) : p.id === 'instagram' ? (
                   <button onClick={() => setShowInstagram(true)} className="w-full bg-pink-600/20 hover:bg-pink-600/30 text-pink-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar Instagram</button>
+                ) : p.id === 'tiktok' ? (
+                  <button onClick={() => setShowTiktok(true)} className="w-full bg-gray-600/20 hover:bg-gray-600/30 text-gray-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar TikTok</button>
+                ) : p.id === 'x' ? (
+                  <button onClick={() => setShowX(true)} className="w-full bg-gray-600/20 hover:bg-gray-600/30 text-gray-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar X</button>
                 ) : (
                   <button className="w-full bg-white/[0.02] text-[#F3E8FF]/15 text-sm font-medium py-2.5 rounded-xl cursor-not-allowed">Em breve</button>
                 )}
