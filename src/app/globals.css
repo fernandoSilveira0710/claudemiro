@@ -1,8 +1,19 @@
+@layer properties {
+  @property --elh { syntax: '<number>'; inherits: true; initial-value: 1; }
+  @property --erh { syntax: '<number>'; inherits: true; initial-value: 1; }
+  @property --erx { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+  @property --ery { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+  @property --fx { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+  @property --fy { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+  @property --ealw { syntax: '<number>'; inherits: true; initial-value: 1; }
+  @property --earw { syntax: '<number>'; inherits: true; initial-value: 1; }
+  @property --mh { syntax: '<number>'; inherits: true; initial-value: 1; }
+  @property --mw { syntax: '<number>'; inherits: true; initial-value: 1; }
+}
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,800;9..40,900&family=Inter:wght@400;500;600;700&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
@@ -96,3 +107,128 @@
 
 /* Selection */
 ::selection { background: rgba(168, 85, 247, 0.4); color: white; }
+
+/* ============================================
+   Claudemiro Bot — Robô que segue o mouse
+   ============================================ */
+.claude-bot {
+  scale: 4.2;
+  width: 34px;
+  aspect-ratio: 1;
+  position: relative;
+  display: grid;
+  place-items: center;
+  animation: bot-blink 2.4s ease infinite, bot-mouth 1.2s ease-in infinite;
+}
+
+.claude-bot .head {
+  background: linear-gradient(#1A0A33 80%, color-mix(in srgb, #1A0A33, black 15%), #1A0A33);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: .375rem;
+  position: absolute;
+  width: 28px;
+  height: 20px;
+}
+
+.claude-bot .head::before,
+.claude-bot .head::after {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 6px;
+  width: 2px;
+  height: 8px;
+  background: var(--color-claude-muted, #7C6B99);
+  border-radius: 2px 0 0 2px;
+  scale: var(--ealw, 1) 1;
+  transform-origin: right center;
+}
+
+.claude-bot .head::after {
+  right: -4px;
+  left: unset;
+  border-radius: 0 2px 2px 0;
+  scale: var(--earw, 1) 1;
+  transform-origin: left center;
+}
+
+.claude-bot .face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: absolute;
+  inset: 0 3px;
+  background: #0D0221;
+  translate: var(--fx) var(--fy);
+  border-radius: 4px;
+  padding: 4px 4px 2px 4px;
+  gap: 3px;
+}
+
+.claude-bot .face::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 4px;
+  width: 1px;
+  height: 5px;
+  background: #7C6B99;
+  box-shadow: 0 -1.5px 0 0.8px #A855F7;
+}
+
+.claude-bot .face::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  right: 4px;
+  width: 1px;
+  height: 5px;
+  background: #7C6B99;
+  box-shadow: 0 -1.5px 0 0.8px #A855F7;
+}
+
+.claude-bot .eyes {
+  display: flex;
+  height: 8px;
+  gap: 6px;
+  margin-top: 1px;
+}
+
+.claude-bot .eyes::before,
+.claude-bot .eyes::after {
+  content: '';
+  width: 5px;
+  height: 8px;
+  scale: 1 var(--elh);
+  filter: drop-shadow(0 0 1.5px #A855F7);
+  background:
+    repeating-linear-gradient(to bottom, #F3E8FF, #F3E8FF .25px, transparent .25px, transparent .6px),
+    linear-gradient(to bottom, #A855F7, transparent 70%),
+    #A855F7;
+  border-radius: 1px;
+  translate: var(--erx) var(--ery);
+}
+
+.claude-bot .eyes::after {
+  scale: 1 var(--erh);
+}
+
+.claude-bot .mouth {
+  width: 10px;
+  height: 2px;
+  background: #A855F7;
+  border-radius: 0 0 1px 1px;
+  filter: drop-shadow(0 0 1.5px #A855F7);
+  scale: var(--mw, 1) var(--mh, 1);
+}
+
+@keyframes bot-blink {
+  from, 6%, 12%, to { --elh: 1; --erh: 1; }
+  8%, 10% { --elh: 0.1; --erh: 0.1; }
+}
+
+@keyframes bot-mouth {
+  from, 30%, 70%, to { --mh: 1; --mw: 1; }
+  20% { --mh: .5; }
+  60% { --mw: .7; }
+}

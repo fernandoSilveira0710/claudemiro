@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
+import { ClaudemiroBot } from '@/components/claudemiro-bot'
 
 const floatingElements = [
   { emoji: '🔮', delay: 0, x: '10%', y: '15%' },
@@ -60,23 +61,14 @@ export default function LoginPage() {
         className="relative z-10 w-full max-w-md mx-4"
       >
         <div className="glass p-8 sm:p-10 text-center space-y-8">
-          {/* Logo / Mascot */}
+          {/* Logo / Mascot — Robô que segue o mouse */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-            className="relative mx-auto w-24 h-24"
+            className="relative mx-auto w-28 h-28 flex items-center justify-center"
           >
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-5xl shadow-[0_0_40px_rgba(168,85,247,0.4)]">
-              🧿
-            </div>
-            <motion.div
-              className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-cyan-400 flex items-center justify-center text-xs"
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              ✨
-            </motion.div>
+            <ClaudemiroBot />
           </motion.div>
 
           {/* Title */}
