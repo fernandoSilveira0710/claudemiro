@@ -197,9 +197,8 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
 
           {/* Botão principal */}
           <div className="flex flex-col items-center gap-3 pt-1">
-            <a href="/chat" className="inline-flex items-center justify-center gap-3 bg-purple-500 hover:bg-purple-600 text-white font-bold px-10 py-4 rounded-2xl shadow-[0_0_30px_rgba(168,85,247,0.25)] hover:shadow-[0_0_45px_rgba(168,85,247,0.45)] transition-all text-lg group">
-              <span className="w-7 h-7 flex items-center justify-center scale-[2.5] mr-1"><ClaudemiroBot /></span>
-              <span>Vamos Conversar</span>
+            <a href="/chat" className="inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500 text-white font-bold px-10 py-4 rounded-2xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(168,85,247,0.3)] hover:shadow-[0_0_50px_rgba(168,85,247,0.5)] text-lg">
+              💬 Vamos Conversar
             </a>
           </div>
         </div>
