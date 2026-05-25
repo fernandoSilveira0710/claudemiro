@@ -8,10 +8,11 @@ import { motion } from 'framer-motion'
 const PLATFORMS = [
   { id: 'spotify', name: 'Spotify', icon: '🎵', color: 'from-green-500 to-green-600', bg: 'bg-green-500/10', oauth: true },
   { id: 'steam', name: 'Steam', icon: '🎮', color: 'from-blue-700 to-blue-900', bg: 'bg-blue-500/10', oauth: false },
-  { id: 'discord', name: 'Discord', icon: '💬', color: 'from-indigo-500 to-indigo-700', bg: 'bg-indigo-500/10', oauth: true },
-  { id: 'youtube', name: 'YouTube', icon: '▶️', color: 'from-red-500 to-red-700', bg: 'bg-red-500/10', oauth: true },
+  { id: 'discord', name: 'Discord', icon: '💬', color: 'from-indigo-500 to-indigo-600', bg: 'bg-indigo-500/10', oauth: true },
+  { id: 'twitch', name: 'Twitch', icon: '🎬', color: 'from-purple-600 to-purple-800', bg: 'bg-purple-500/10', oauth: true },
+  { id: 'youtube', name: 'YouTube', icon: '▶️', color: 'from-red-500 to-red-600', bg: 'bg-red-500/10', oauth: true },
   { id: 'instagram', name: 'Instagram', icon: '📸', color: 'from-pink-500 to-purple-500', bg: 'bg-pink-500/10', oauth: false },
-  { id: 'tiktok', name: 'TikTok', icon: '🎬', color: 'from-gray-700 to-black', bg: 'bg-gray-500/10', oauth: false },
+  { id: 'tiktok', name: 'TikTok', icon: '🎵', color: 'from-gray-700 to-black', bg: 'bg-gray-500/10', oauth: false },
   { id: 'x', name: 'X / Twitter', icon: '🐦', color: 'from-gray-600 to-gray-800', bg: 'bg-gray-500/10', oauth: false },
 ]
 
@@ -39,11 +40,16 @@ export default function ConnectPage() {
   const handleConnect = (platformId: string) => {
     if (platformId === 'spotify') {
       window.location.href = '/api/auth/spotify'
+    } else if (platformId === 'discord') {
+      window.location.href = '/api/auth/discord'
+    } else if (platformId === 'twitch') {
+      window.location.href = '/api/auth/twitch'
+    } else if (platformId === 'youtube') {
+      window.location.href = '/api/auth/youtube'
     } else if (platformId === 'steam') {
       setShowSteam(true)
     }
   }
-
   const handleSteamConnect = async () => {
     if (!steamId) return
     setConnecting('steam')
