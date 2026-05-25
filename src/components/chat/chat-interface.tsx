@@ -13,25 +13,52 @@ type Message = {
 }
 
 const MODE_OPTIONS = [
-  { id: 'engracado', emoji: '😂', label: 'Engraçado', desc: 'Zoeira pesada, humor ácido, sem filtro', color: 'from-amber-500 to-orange-600', glow: 'rgba(245,158,11,0.3)' },
-  { id: 'casual', emoji: '✌️', label: 'Casual', desc: 'Leve e descontraído, na boa', color: 'from-blue-500 to-cyan-500', glow: 'rgba(59,130,246,0.3)' },
-  { id: 'profissional', emoji: '😎', label: 'Profissional', desc: 'Sério e analítico, sem zoeira', color: 'from-slate-500 to-slate-700', glow: 'rgba(100,116,139,0.3)' },
+  { 
+    id: 'engracado', 
+    icon: '😈', 
+    label: 'Engraçado', 
+    desc: 'Zoeira pesada, humor ácido, sem filtro', 
+    tag: '🔥 Mais escolhido',
+    highlight: true,
+  },
+  { 
+    id: 'casual', 
+    icon: '✌️', 
+    label: 'Casual', 
+    desc: 'Leve e descontraído, na boa',
+    tag: '🌿 Suave',
+  },
+  { 
+    id: 'profissional', 
+    icon: '🧐', 
+    label: 'Profissional', 
+    desc: 'Sério e analítico, sem zoeira',
+    tag: '📊 Técnico',
+  },
 ]
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [mode, setMode] = useState<string | null>(null)
+  const [initializing, setInitializing] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [answeredQuestions, setAnsweredQuestions] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   const startChat = async (selectedMode: string) => {
+    setInitializing(selectedMode)
+    
+    // Delay dramático pra dar clima de terminal
+    await new Promise(r => setTimeout(r, 1200))
+    
     setMode(selectedMode)
+    setInitializing(null)
     setLoading(true)
 
     const res = await fetch('/api/chat', {
@@ -80,57 +107,105 @@ export function ChatInterface() {
 
   // Mode selection
   if (!mode) {
+    const initMode = MODE_OPTIONS.find(o => o.id === initializing)
+    
     return (
-      <div className="min-h-screen bg-[#0D0221] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0D0221] flex items-center justify-center relative overflow-hidden">
+        {/* Fundo matrix sutil */}
+        <canvas ref={canvasRef} className="absolute inset-0 z-0 opacity-20 pointer-events-none" />
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/3 left-1/4 w-72 h-72 bg-purple-600/10 rounded-full blur-[100px]" />
-          <div className="absolute bottom-1/3 right-1/4 w-72 h-72 bg-pink-600/5 rounded-full blur-[100px]" />
+          <div className="absolute top-1/3 left-1/4 w-96 h-96 bg-purple-600/8 rounded-full blur-[120px]" />
+          <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-pink-600/5 rounded-full blur-[120px]" />
         </div>
 
-        <div className="relative text-center space-y-8 max-w-lg px-4">
+        <div className="relative text-center space-y-6 max-w-lg px-4 z-10">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ type: 'spring' }}
-            className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.3)] overflow-hidden"
+            transition={{ type: 'spring', stiffness: 200 }}
+            className="w-28 h-28 mx-auto flex items-center justify-center claude-bot-glow"
           >
-            <div className="scale-[3.5]"><ClaudemiroBot /></div>
+            <ClaudemiroBot />
           </motion.div>
 
           <div>
-            <h1
-              className="text-3xl sm:text-4xl font-black text-white"
-              style={{ fontFamily: "'DM Sans', sans-serif" }}
-            >
-              Claudemiro vai te entrevistar
+            <h1 className="text-3xl sm:text-4xl font-black text-white" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+              {initializing ? 'INICIALIZANDO...' : 'Claudemiro vai te entrevistar'}
             </h1>
-            <p className="text-[#F3E8FF]/50 mt-2">
-              Escolha o tom. Depois é só responder. Sem filtro.
+            <p className="text-[#F3E8FF]/50 mt-2 text-sm">
+              {initializing ? 'Preparando o protocolo de julgamento...' : 'Escolha o tom. Depois é só responder. Sem filtro.'}
             </p>
           </div>
 
-          <div className="space-y-3">
-            {MODE_OPTIONS.map((opt, i) => (
-              <motion.button
-                key={opt.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * i }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => startChat(opt.id)}
-                className={`w-full text-left p-5 rounded-2xl transition-all border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] group`}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-3xl">{opt.emoji}</span>
-                  <div>
-                    <div className="text-lg font-bold text-white">{opt.label}</div>
-                    <div className="text-sm text-[#F3E8FF]/40">{opt.desc}</div>
+          {initializing ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="glass-card p-6 space-y-3"
+            >
+              <p className="text-[#F3E8FF]/40 font-mono text-xs tracking-wider">
+                {initMode?.id === 'engracado' && '⚡ INICIALIZANDO PROTOCOLO DE ZOEIRA...'}
+                {initMode?.id === 'casual' && '🌿 CARREGANDO MODO SUAVE...'}
+                {initMode?.id === 'profissional' && '📊 COMPILANDO ANÁLISE TÉCNICA...'}
+              </p>
+              <div className="flex justify-center gap-1">
+                {[...Array(8)].map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="w-2 h-2 bg-purple-500 rounded-full"
+                    animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
+                    transition={{ duration: 1, delay: i * 0.12, repeat: Infinity }}
+                  />
+                ))}
+              </div>
+              <p className="text-[#F3E8FF]/20 text-[10px] font-mono">[CARREGANDO SYSTEM PROMPT...]</p>
+            </motion.div>
+          ) : (
+            <div className="space-y-3">
+              {MODE_OPTIONS.map((opt, i) => (
+                <motion.button
+                  key={opt.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * i }}
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => startChat(opt.id)}
+                  className={`w-full text-left p-4 rounded-2xl transition-all duration-300 border group relative overflow-hidden ${
+                    opt.highlight 
+                      ? 'bg-purple-500/5 border-purple-500/20 hover:bg-purple-500/10 hover:border-purple-400/40 shadow-[0_0_20px_rgba(168,85,247,0.08)] hover:shadow-[0_0_35px_rgba(168,85,247,0.2)]' 
+                      : 'bg-white/[0.01] border-white/[0.04] hover:bg-white/[0.03] hover:border-white/[0.08]'
+                  }`}
+                >
+                  {/* Brilho de fundo no hover */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/0 to-purple-500/0 group-hover:from-purple-500/[0.02] group-hover:via-purple-500/[0.04] group-hover:to-purple-500/[0.02] transition-all duration-500" />
+                  
+                  <div className="relative flex items-center gap-4">
+                    <span className="text-3xl w-12 h-12 flex items-center justify-center rounded-xl bg-white/[0.03] group-hover:bg-white/[0.06] transition-colors">
+                      {opt.icon}
+                    </span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-lg font-bold text-white group-hover:text-purple-200 transition-colors">
+                          {opt.label}
+                        </div>
+                        {opt.tag && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            opt.highlight ? 'bg-purple-500/20 text-purple-300' : 'bg-white/[0.04] text-[#F3E8FF]/25'
+                          }`}>
+                            {opt.tag}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-[#F3E8FF]/30 group-hover:text-[#F3E8FF]/50 transition-colors mt-0.5">
+                        {opt.desc}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </motion.button>
-            ))}
-          </div>
+                </motion.button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -144,13 +219,13 @@ export function ChatInterface() {
       {/* Header */}
       <header className="border-b border-white/[0.06] p-4 flex items-center justify-between bg-[#0D0221]/80 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.3)] overflow-hidden">
-            <div className="scale-[1.8]"><ClaudemiroBot /></div>
+          <div className="w-12 h-12 flex items-center justify-center claude-bot-glow -ml-2">
+            <ClaudemiroBot />
           </div>
           <div>
             <h1 className="font-bold text-white text-sm">Claudemiro</h1>
             <span className="text-xs text-[#F3E8FF]/30">
-              {modeInfo.emoji} Modo {modeInfo.label}
+              {modeInfo.icon} Modo {modeInfo.label}
             </span>
           </div>
         </div>
