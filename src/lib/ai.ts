@@ -1,44 +1,108 @@
-const OLLAMA_BASE = 'http://localhost:11434/v1'
-const DEEPSEEK_BASE = 'https://api.deepseek.com/v1'
+// Sistema de modelos por plano
+// Cada plano tem um modelo padrão. PRO pode escolher entre opções.
 
-// Usar Ollama local se disponível, senão DeepSeek
-async function getClient(): Promise<{ base: string; key?: string; model: string }> {
-  try {
-    const res = await fetch(`${OLLAMA_BASE}/models`)
-    if (res.ok) {
-      return {
-        base: OLLAMA_BASE,
-        model: 'qwen2.5-coder:7b',
-      }
-    }
-  } catch {}
+export interface ModelConfig {
+  name: string
+  provider: 'ollama' | 'deepseek' | 'openai' | 'custom'
+  model: string
+  baseUrl: string
+  apiKey?: string
+}
 
-  return {
-    base: DEEPSEEK_BASE,
-    key: process.env.DEEPSEEK_API_KEY!,
+const MODELS: Record<string, ModelConfig> = {
+  // Local
+  qwen: {
+    name: 'Qwen 2.5 Coder 7B',
+    provider: 'ollama',
+    model: 'qwen2.5-coder:7b',
+    baseUrl: 'http://localhost:11434/v1',
+  },
+  gemma: {
+    name: 'Gemma 3 4B',
+    provider: 'ollama',
+    model: 'gemma3:4b',
+    baseUrl: 'http://localhost:11434/v1',
+  },
+
+  // Cloud (API keys do .env)
+  deepseek: {
+    name: 'DeepSeek Chat',
+    provider: 'deepseek',
     model: 'deepseek-chat',
+    baseUrl: 'https://api.deepseek.com/v1',
+    apiKey: process.env.DEEPSEEK_API_KEY,
+  },
+}
+
+// Plano → modelo padrão
+const PLAN_MODEL: Record<string, string> = {
+  FREE: 'gemma',
+  FLEX: 'qwen',
+  PRO: 'deepseek',
+}
+
+// Modelos disponíveis por plano
+const PLAN_OPTIONS: Record<string, string[]> = {
+  FREE: ['gemma'],
+  FLEX: ['gemma', 'qwen'],
+  PRO: ['gemma', 'qwen', 'deepseek'],
+}
+
+export function getModelForPlan(plan: string, preferredModel?: string): ModelConfig {
+  const availableModels = PLAN_OPTIONS[plan] || PLAN_OPTIONS['FREE']
+
+  // Se o usuário tem preferência salva e está disponível no plano dele
+  if (preferredModel && availableModels.includes(preferredModel)) {
+    return MODELS[preferredModel]
   }
+
+  // Modelo padrão do plano
+  const defaultModel = PLAN_MODEL[plan] || 'gemma'
+  return MODELS[defaultModel]
+}
+
+export function getAvailableModels(plan: string): ModelConfig[] {
+  const availableModels = PLAN_OPTIONS[plan] || PLAN_OPTIONS['FREE']
+  return availableModels.map(id => MODELS[id]).filter(Boolean)
 }
 
 export async function chatCompletion(
   messages: { role: string; content: string }[],
   systemPrompt?: string,
-  options?: { temperature?: number; maxTokens?: number; json?: boolean }
+  options?: { temperature?: number; maxTokens?: number; json?: boolean },
+  modelOverride?: ModelConfig
 ): Promise<string> {
-  const client = await getClient()
+  // Usar modelo passado ou detectar automaticamente
+  let model: ModelConfig
+
+  if (modelOverride) {
+    model = modelOverride
+  } else {
+    // Detectar Ollama disponível, senão DeepSeek
+    try {
+      const res = await fetch('http://localhost:11434/api/tags')
+      if (res.ok) {
+        model = MODELS.qwen // Ollama local
+      } else {
+        throw new Error('no ollama')
+      }
+    } catch {
+      model = MODELS.deepseek // Fallback cloud
+    }
+  }
 
   const allMessages = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (client.key) headers['Authorization'] = `Bearer ${client.key}`
+  if (model.apiKey) headers['Authorization'] = `Bearer ${model.apiKey}`
 
-  const res = await fetch(`${client.base}/chat/completions`, {
+  const res = await fetch(`${model.baseUrl}/chat/completions`, {
     method: 'POST',
     headers,
     body: JSON.stringify({
-      model: client.model,
+      model: model.model,
       messages: allMessages,
       temperature: options?.temperature ?? 0.9,
       max_tokens: options?.maxTokens ?? 2000,
@@ -48,7 +112,7 @@ export async function chatCompletion(
 
   if (!res.ok) {
     const err = await res.text()
-    throw new Error(`AI API error: ${res.status} ${err}`)
+    throw new Error(`AI error (${model.provider}/${model.model}): ${res.status} ${err}`)
   }
 
   const data = await res.json()
