@@ -16,6 +16,14 @@ export default async function HomePage() {
 
   if (!profile?.username) return <SetupUsername />
 
+  // Calcular dias desde último login
+  const lastLogin = profile.last_login ? new Date(profile.last_login) : null
+  const now = new Date()
+  const lastSeenDays = lastLogin ? Math.floor((now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24)) : 0
+
+  // Atualizar último login
+  await supabase.from('profiles').update({ last_login: now.toISOString() }).eq('id', user.id)
+
   const { count: vereditsCount } = await supabase
     .from('veredits')
     .select('*', { count: 'exact', head: true })
@@ -37,6 +45,7 @@ export default async function HomePage() {
       connectionsCount={connectionsCount}
       connectionPlatforms={connectionPlatforms}
       connectionsData={connectionsData}
+      lastSeenDays={lastSeenDays}
     />
   )
 }

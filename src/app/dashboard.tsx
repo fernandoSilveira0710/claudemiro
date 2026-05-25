@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
-import { generateScanLines, getBotMood, getBotSpeech } from '@/lib/scan-lines'
+import { generateScanLines, getBotMood, getBotSpeech, getReturnSpeech } from '@/lib/scan-lines'
 
 interface DashboardProps {
   profile: { username: string; display_name: string; plan: string }
@@ -12,6 +12,7 @@ interface DashboardProps {
   connectionsCount: number
   connectionPlatforms: string[]
   connectionsData: { platform: string; data: any }[]
+  lastSeenDays: number
 }
 
 const PLATFORM_ICONS: Record<string, { path: string; color: string; name: string }> = {
@@ -27,11 +28,13 @@ const PLATFORM_ICONS: Record<string, { path: string; color: string; name: string
   reddit: { path: 'M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0z', color: '#FF4500', name: 'Reddit' },
 }
 
-export function DashboardPage({ profile, vereditsCount, connectionsCount, connectionPlatforms, connectionsData }: DashboardProps) {
+export function DashboardPage({ profile, vereditsCount, connectionsCount, connectionPlatforms, connectionsData, lastSeenDays }: DashboardProps) {
   const supabase = createClient()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mood = getBotMood(connectionsCount)
-  const speech = getBotSpeech(connectionsCount, vereditsCount)
+  const returnSpeech = getReturnSpeech(lastSeenDays)
+  const baseSpeech = getBotSpeech(connectionsCount, vereditsCount, connectionsData)
+  const speech = returnSpeech || baseSpeech
   const [scanIndex, setScanIndex] = useState(0)
 
   // Gerar todas as linhas de scan
