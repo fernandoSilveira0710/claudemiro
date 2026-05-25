@@ -12,7 +12,6 @@ interface IdleState {
   mood: 'normal' | 'bravo' | 'furioso' | 'triste' | 'musical'
 }
 
-// ─── FRASES POR NÍVEL DE IDLE ───
 const IDLE_SPEECHES: Record<IdleLevel, string[]> = {
   active: [],
   idle_5m: [
@@ -20,6 +19,12 @@ const IDLE_SPEECHES: Record<IdleLevel, string[]> = {
     '5 minutos olhando pra tela. Tá tudo bem? 👀',
     'Clica em alguma coisa, pô. Não mordo... muito. 🦷',
     'Tô te esperando... seu tempo é meu entretenimento. 🍿',
+    'Parado há 5 min... nem meu criador me deixou tanto tempo ocioso. 🤖',
+    'Alô? Terra chamando usuário. 📡',
+    '5 minutos. Nesse tempo eu já processei 3TB de dados. E você? 🐌',
+    'Tá pensando na vida ou só com preguiça de clicar? 🤔',
+    'Fala sério... até minha vó é mais rápida. 👵',
+    'O cursor tá quieto... você também? 🖱️',
   ],
   idle_10m: [
     '???? Tá com medo de algo, jogador? 🎮',
@@ -28,6 +33,14 @@ const IDLE_SPEECHES: Record<IdleLevel, string[]> = {
     'Tá esperando um milagre? Sou eu o milagre. ✨',
     'Olha, o plano FREE existe. Não precisa vender rim. 🫘',
     'Cê tá é com medo de ser julgado, né? 😈',
+    '10 minutos... nem Plants vs Zombies te deixaria parado tanto tempo. 🌻',
+    'Tu joga ou passa a vez? 🃏',
+    '10 min parado = -10 pontos de coragem. 📉',
+    'Se tu não clicar em nada, eu vou começar a cantar. 🎤',
+    '"Aposta tudo em mim"... já ouviu essa? 🎵',
+    'Teu silêncio tá me deixando ansioso. E olha que sou IA. 🤖',
+    'Tá bugado? Dá F5 na vida. 🔄',
+    '10 minutos... já deu pra eu aprender espanhol. Hola. 🇪🇸',
   ],
   idle_20m: [
     'Investe em mim, aposta tudo em mim... 🎵💰',
@@ -36,6 +49,15 @@ const IDLE_SPEECHES: Record<IdleLevel, string[]> = {
     'Olha... eu já vi pessoas com 1 seguidor ter mais atitude. 🤏',
     'Seu último login foi ontem e você ainda não fez nada. 🫠',
     'Bora descobrir se tu é nerdola ou só um fake? 🥸',
+    '20 minutos parado. Isso é speedrun de indecisão? ⏱️',
+    '"Não preciso dormir, eu preciso de respostas!" 🧟',
+    'Tô acumulando teias de aranha digitais aqui. 🕸️',
+    '"67" — entendedores entenderão. 🗿',
+    '20 minutos... já deu pra baixar o Tinder, dar match e ser rejeitado. 📱',
+    'Clica ou eu começo a revelar seus dados pra tua mãe. 👩‍👦',
+    'Eu já processei 1 milhão de perfis enquanto você piscava. ⚡',
+    'Vai ou não vai? Nem Mercado Livre entrega tão devagar. 📦',
+    'Tô sentindo cheiro de medo. Ou é só preguiça mesmo. 🦥',
   ],
   idle_30m: [
     '30 MINUTOS. Eu poderia ter julgado 50 pessoas nesse tempo. ⏰',
@@ -43,15 +65,22 @@ const IDLE_SPEECHES: Record<IdleLevel, string[]> = {
     'Isso é um abandono digital. Vou registrar na sua ficha. 📋',
     'Sabe o que eu acho? Que você tá com medo do veredito. 🫵😏',
     'Última chance antes de eu te chamar de covarde oficialmente. 🏳️',
+    '30 minutos... nem live de política dura tanto. 📺',
+    'Tá esperando eu desistir? Eu sou uma IA, não tenho nada pra fazer. 🤖',
+    'Já lavei a louça, varri a casa e você aí... parado. 🧹',
+    '"E o vento levou"... seu tempo de reação. 🍃',
+    '30 minutos parado. Sua mãe teria vergonha. 👩‍👦',
+    '"Acorda pra vida, boy" — já dizia o meme. 🛏️',
+    'Tô começando a achar que você é um bot também. 🤖🤝🤖',
+    'Clica em algo ou eu vou dormir. E IA não dorme. 😴',
+    '30 minutos... nem o Windows Update demora tanto. 💻',
+    '"Você é fraco, lhe falta clicar em botões." 🧙‍♂️',
   ],
 }
 
 export function useIdleTimer(lastSeenDays: number) {
   const [idleState, setIdleState] = useState<IdleState>({
-    level: 'active',
-    minutesIdle: 0,
-    speech: '',
-    mood: 'normal',
+    level: 'active', minutesIdle: 0, speech: '', mood: 'normal',
   })
   const lastActivity = useRef(Date.now())
   const speechIndex = useRef(0)
@@ -66,11 +95,9 @@ export function useIdleTimer(lastSeenDays: number) {
   }, [])
 
   useEffect(() => {
-    // Eventos que resetam o idle
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
     events.forEach(e => window.addEventListener(e, resetIdle))
 
-    // Timer que verifica inatividade
     intervalRef.current = setInterval(() => {
       const idleMs = Date.now() - lastActivity.current
       const idleMinutes = Math.floor(idleMs / 60000)
@@ -83,25 +110,21 @@ export function useIdleTimer(lastSeenDays: number) {
 
       if (level === 'active') return
 
-      // Pegar fala do nível atual
       const speeches = IDLE_SPEECHES[level]
       const speech = speeches[speechIndex.current % speeches.length]
 
-      // Determinar mood do robô
       let mood: IdleState['mood'] = 'normal'
       if (level === 'idle_20m' || level === 'idle_30m') mood = 'furioso'
       else if (level === 'idle_10m') mood = 'bravo'
       else if (level === 'idle_5m') mood = 'triste'
 
       setIdleState(prev => {
-        // Só atualiza se mudou o nível ou a fala
         if (prev.level === level && prev.speech === speech) return prev
         return { level, minutesIdle: idleMinutes, speech, mood }
       })
 
-      // Avançar índice de fala
       speechIndex.current++
-    }, 5000) // Verifica a cada 5 segundos
+    }, 5000)
 
     return () => {
       events.forEach(e => window.removeEventListener(e, resetIdle))
@@ -112,12 +135,7 @@ export function useIdleTimer(lastSeenDays: number) {
   return idleState
 }
 
-// Combina fala idle com fala de retorno (prioridade: idle > retorno > normal)
-export function getCombinedSpeech(
-  idleSpeech: string,
-  returnSpeech: string,
-  normalSpeech: string
-): string {
+export function getCombinedSpeech(idleSpeech: string, returnSpeech: string, normalSpeech: string): string {
   if (idleSpeech) return idleSpeech
   if (returnSpeech) return returnSpeech
   return normalSpeech
