@@ -9,38 +9,41 @@ const VEREDICTS = [
   { user: '@maria.clara', text: 'Teu algoritmo do TikTok acha que tu tem 14 anos e gosta de dança. E tá certo.' },
   { user: '@lucaszx', text: 'Nerdola nível hard. 847h de Steam esse ano. Mas pelo menos não é LoL.' },
   { user: '@bruno_fit', text: 'Posta foto na academia mas o Spotify diz que tu só ouve modão. Ficha caiu.' },
+  { user: '@gabszn', text: 'Tu disse que lê livros mas teu YouTube é 100% react de react. Se decide.' },
+  { user: '@carlaprado', text: 'Seguindo 2k de pessoas e 1.8k são loja de roupa. Consumista premium.' },
+  { user: '@vitorhugo_', text: 'Retweetou política 47x essa semana. Tá bem? Quer um abraço?' },
+  { user: '@lezinha', text: 'Playlist pública chamada "foco" com Lo-Fi e usuária de Twitter 8h/dia. Foco onde?' },
+  { user: '@_rick', text: 'Teu Discord tem 34 servidores. Tu não conversa em nenhum. Só acumula.' },
+]
+
+const POSITIONS = [
+  'top-[8%] right-[12%]',
+  'top-[18%] left-[8%]',
+  'top-[32%] right-[6%]',
+  'top-[48%] left-[12%]',
+  'top-[55%] right-[14%]',
+  'top-[68%] left-[6%]',
+  'top-[78%] right-[10%]',
+  'top-[22%] left-[22%]',
+  'top-[42%] right-[20%]',
+  'top-[60%] left-[18%]',
 ]
 
 export function FloatingVeredicts() {
   const [visible, setVisible] = useState<number[]>([])
 
   useEffect(() => {
-    // Mostrar cards em sequência com intervalos
-    const timers = VEREDICTS.map((_, i) =>
-      setTimeout(() => setVisible(prev => [...prev, i]), 2000 + i * 4000)
-    )
-
-    // Reciclar: esconder e mostrar de novo
-    const recycleInterval = setInterval(() => {
+    const show = () => {
       setVisible([])
       VEREDICTS.forEach((_, i) => {
-        setTimeout(() => setVisible(prev => [...prev, i]), i * 1500)
+        setTimeout(() => setVisible(prev => [...prev, i]), i * 1200)
       })
-    }, 22000)
-
-    return () => {
-      timers.forEach(clearTimeout)
-      clearInterval(recycleInterval)
     }
-  }, [])
 
-  const positions = [
-    'right-8 top-24',
-    'left-8 top-44',
-    'right-10 top-[55%]',
-    'left-10 top-[68%]',
-    'right-12 top-[42%]',
-  ]
+    show()
+    const interval = setInterval(show, 18000)
+    return () => clearInterval(interval)
+  }, [])
 
   return (
     <>
@@ -48,11 +51,11 @@ export function FloatingVeredicts() {
         <AnimatePresence key={i}>
           {visible.includes(i) && (
             <motion.div
-              initial={{ opacity: 0, x: i % 2 === 0 ? 40 : -40, scale: 0.9 }}
-              animate={{ opacity: 0.6, x: 0, scale: 1 }}
+              initial={{ opacity: 0, x: i % 3 === 0 ? -30 : i % 3 === 1 ? 30 : -20, y: 10, scale: 0.9 }}
+              animate={{ opacity: 0.65, x: 0, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.6, ease: 'easeOut' }}
-              className={`fixed ${positions[i]} z-0 hidden lg:block pointer-events-none max-w-[200px]`}
+              className={`fixed ${POSITIONS[i]} z-0 hidden lg:block pointer-events-none max-w-[190px]`}
             >
               <div className="glass-card p-3 text-left bg-[#1A0A33]/80 border-purple-500/15 animate-veredict-float">
                 <p className="text-purple-400 text-xs font-bold mb-1">{v.user}</p>
