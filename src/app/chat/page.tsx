@@ -1,10 +1,21 @@
-export default function ChatPage() {
-  return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
-      <div className="text-center">
-        <h1 className="text-3xl font-black mb-2">Chat</h1>
-        <p className="text-white/50">Em breve você falará com o Claudemiro aqui.</p>
-      </div>
-    </div>
-  )
+import { createServerSupabase } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { ChatInterface } from '@/components/chat/chat-interface'
+
+export default async function ChatPage() {
+  const supabase = await createServerSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) redirect('/auth/login')
+
+  // Verificar se tem ao menos 2 conexões
+  const { data: connections } = await supabase
+    .from('social_connections')
+    .select('platform')
+    .eq('user_id', user.id)
+
+  const connectedCount = connections?.length || 0
+  if (connectedCount < 1) redirect('/connect')
+
+  return <ChatInterface />
 }
