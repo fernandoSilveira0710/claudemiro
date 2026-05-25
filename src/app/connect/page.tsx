@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
+import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 
 const PLATFORMS = [
@@ -18,13 +19,29 @@ const PLATFORMS = [
 
 export default function ConnectPage() {
   const supabase = createClient()
-  const [connections, setConnections] = useState<Set<string>>(new Set())
+  const [connections, setConnections] = useState<Map<string, any>>(new Map())
   const [steamId, setSteamId] = useState('')
   const [connecting, setConnecting] = useState('')
   const [showSteam, setShowSteam] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadConnections()
+    const params = new URLSearchParams(window.location.search)
+    const success = params.get('success')
+    const error = params.get('error')
+
+    if (success) {
+      const names: Record<string, string> = { spotify: 'Spotify', discord: 'Discord', twitch: 'Twitch', youtube: 'YouTube', steam: 'Steam' }
+      toast.success(`${names[success] || success} conectado!`, { description: 'Seus dados serão usados na análise.' })
+      loadConnections()
+    }
+    if (error) {
+      toast.error(`Erro na conexão (${error})`, { description: 'Verifique as credenciais no .env.local ou tente novamente.' })
+    }
+    if (success || error) {
+      window.history.replaceState({}, '', '/connect')
+    }
   }, [])
 
   const loadConnections = async () => {
@@ -32,9 +49,13 @@ export default function ConnectPage() {
     if (!user) return
     const { data } = await supabase
       .from('social_connections')
-      .select('platform')
+      .select('platform, raw_data, platform_username')
       .eq('user_id', user.id)
-    setConnections(new Set(data?.map(c => c.platform) || []))
+
+    const map = new Map()
+    data?.forEach(c => map.set(c.platform, c))
+    setConnections(map)
+    setLoading(false)
   }
 
   const handleConnect = (platformId: string) => {
@@ -169,6 +190,7 @@ export default function ConnectPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {PLATFORMS.map((p, i) => {
             const connected = connections.has(p.id)
+            const conn = connections.get(p.id)
 
             return (
               <motion.div
@@ -195,6 +217,15 @@ export default function ConnectPage() {
                     <span className="text-xs text-[#F3E8FF]/20">Não conectado</span>
                   )}
                 </div>
+
+                {connected && (
+                  <div className="text-xs text-[#F3E8FF]/25 space-y-0.5 mb-2">
+                    {conn.platform_username && <p>👤 {conn.platform_username}</p>}
+                    {p.id === 'steam' && conn.raw_data?.games && (
+                      <p>🎮 {conn.raw_data.games.length} jogos · {Math.round(conn.raw_data.games.reduce((s: number, g: any) => s + (g.playtime_forever || 0), 0) / 60)}h totais</p>
+                    )}
+                  </div>
+                )}
 
                 {!connected && (p.oauth ? (
                   <button

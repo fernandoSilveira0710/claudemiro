@@ -49,17 +49,22 @@ export async function GET(request: Request) {
   } catch {}
 
   const supabase = await createServerSupabase()
-  await supabase.from('social_connections').upsert({
-    user_id: state,
-    platform: 'discord',
-    access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token,
-    token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    platform_user_id: profile.id,
-    platform_username: profile.username,
-    raw_data: { ...profile, guilds },
-    last_synced_at: new Date().toISOString(),
-  }, { onConflict: 'user_id,platform' })
+  try {
+    await supabase.from('social_connections').upsert({
+      user_id: state,
+      platform: 'discord',
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      platform_user_id: profile.id,
+      platform_username: profile.username,
+      raw_data: { ...profile, guilds },
+      last_synced_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,platform' })
+  } catch (err: any) {
+    console.error('Discord upsert error:', err.message, err.code)
+    return NextResponse.redirect(new URL('/connect?error=discord_db', process.env.NEXT_PUBLIC_APP_URL))
+  }
 
   return NextResponse.redirect(new URL('/connect?success=discord', process.env.NEXT_PUBLIC_APP_URL))
 }
