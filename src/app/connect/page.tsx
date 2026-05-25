@@ -150,13 +150,13 @@ export default function ConnectPage() {
 
                 {connected && (
                   <div className="text-xs text-[#F3E8FF]/25 space-y-1 mb-2">
-                    {conn.raw_data?.profile?.avatarfull && (
+                    {(conn.raw_data?.profile?.avatarfull || conn.raw_data?.avatar_url) && (
                       <div className="flex items-center gap-2 mb-1">
-                        <img src={conn.raw_data.profile.avatarfull} alt="" className="w-6 h-6 rounded-full" />
+                        <img src={conn.raw_data.profile?.avatarfull || conn.raw_data.avatar_url} alt="" className="w-6 h-6 rounded-full" />
                         <span>{conn.platform_username}</span>
                       </div>
                     )}
-                    {!conn.raw_data?.profile?.avatarfull && conn.platform_username && (
+                    {!conn.raw_data?.profile?.avatarfull && !conn.raw_data?.avatar_url && conn.platform_username && (
                       <p>👤 {conn.platform_username}</p>
                     )}
                     {p.id === 'steam' && conn.raw_data?.games && (
@@ -164,6 +164,13 @@ export default function ConnectPage() {
                     )}
                     {p.id === 'discord' && conn.raw_data?.guilds && (
                       <p>💬 {conn.raw_data.guilds.length} servidores</p>
+                    )}
+                    {p.id === 'youtube' && conn.raw_data?.channel && (
+                      <div>
+                        <p>📺 {conn.raw_data.channel.statistics?.subscriberCount || 0} inscritos</p>
+                        <p>▶️ {conn.raw_data.channel.statistics?.videoCount || 0} vídeos</p>
+                        <p>👥 Segue {conn.raw_data.subscriptions?.length || 0} canais</p>
+                      </div>
                     )}
                     {p.id === 'twitch' && conn.raw_data?.follows && (
                       <p>📺 {conn.raw_data.follows.length} canais seguidos</p>

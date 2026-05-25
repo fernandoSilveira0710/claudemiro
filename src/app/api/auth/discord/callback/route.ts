@@ -23,9 +23,7 @@ export async function GET(request: Request) {
     }),
   })
 
-  if (!tokenRes.ok) {
-    return NextResponse.redirect(new URL('/connect?error=discord_token', process.env.NEXT_PUBLIC_APP_URL))
-  }
+  if (!tokenRes.ok) return NextResponse.redirect(new URL('/connect?error=discord_token', process.env.NEXT_PUBLIC_APP_URL))
 
   const tokens = await tokenRes.json()
 
@@ -33,13 +31,15 @@ export async function GET(request: Request) {
     headers: { Authorization: `Bearer ${tokens.access_token}` },
   })
 
-  if (!profileRes.ok) {
-    return NextResponse.redirect(new URL('/connect?error=discord_profile', process.env.NEXT_PUBLIC_APP_URL))
-  }
+  if (!profileRes.ok) return NextResponse.redirect(new URL('/connect?error=discord_profile', process.env.NEXT_PUBLIC_APP_URL))
 
   const profile = await profileRes.json()
 
-  // Buscar guilds (servidores)
+  // Montar URL do avatar
+  const avatarUrl = profile.avatar
+    ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
+    : null
+
   let guilds = []
   try {
     const guildsRes = await fetch('https://discord.com/api/users/@me/guilds', {
@@ -49,25 +49,22 @@ export async function GET(request: Request) {
   } catch {}
 
   const supabase = await createServerSupabase()
-  try {
-    await supabase.from('social_connections').upsert({
-      user_id: state,
-      platform: 'discord',
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-      platform_user_id: profile.id,
-      platform_username: profile.username,
-      raw_data: { ...profile, guilds },
-      last_synced_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,platform' })
-  } catch (err: any) {
-    console.error('Discord upsert error:', err.message, err.code)
-    return NextResponse.redirect(new URL('/connect?error=discord_db', process.env.NEXT_PUBLIC_APP_URL))
-  }
+  const { error: upsertError } = await supabase.from('social_connections').upsert({
+    user_id: state,
+    platform: 'discord',
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+    platform_user_id: profile.id,
+    platform_username: profile.username,
+    raw_data: { ...profile, guilds, avatar_url: avatarUrl },
+    last_synced_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,platform' })
+
+  if (upsertError) return NextResponse.redirect(new URL('/connect?error=discord_db', process.env.NEXT_PUBLIC_APP_URL))
 
   return new Response(
-    `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=/connect?success=discord"></head><body><p>Conectado! Redirecionando...</p></body></html>`,
+    `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=/connect?success=discord"></head><body></body></html>`,
     { headers: { 'Content-Type': 'text/html' } }
   )
 }
