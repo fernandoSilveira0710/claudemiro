@@ -50,6 +50,7 @@ const PLATFORMS = [
 
 export default function ConnectPage() {
   const supabase = createClient()
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [connections, setConnections] = useState<Map<string, any>>(new Map())
   const [steamId, setSteamId] = useState('')
   const [connecting, setConnecting] = useState('')
@@ -206,206 +207,126 @@ export default function ConnectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0D0221] text-white">
-      <canvas ref={useRef<HTMLCanvasElement>(null)} className="absolute inset-0 z-0 opacity-25 pointer-events-none" />
+    <div className="min-h-screen bg-[#0D0221] text-white relative">
+      <canvas ref={canvasRef} className="absolute inset-0 z-0 opacity-25 pointer-events-none" />
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-20 right-20 w-72 h-72 bg-purple-600/8 rounded-full blur-[100px]" />
+        <div className="absolute bottom-20 left-20 w-72 h-72 bg-pink-600/8 rounded-full blur-[100px]" />
       </div>
 
-      <header className="relative border-b border-white/[0.06] p-4 flex items-center justify-between">
+      <header className="relative z-10 border-b border-white/[0.06] px-6 py-4 flex items-center justify-between backdrop-blur-sm">
         <a href="/" className="text-xl font-black tracking-tight" style={{ fontFamily: "'DM Sans', sans-serif" }}>CLAUDEMIRO</a>
-        <a href="/" className="text-[#F3E8FF]/30 hover:text-white text-sm transition">← Voltar</a>
+        <div className="flex items-center gap-4">
+          {connectedCount > 0 && <span className="text-xs text-[#F3E8FF]/30">{connectedCount} conectada{connectedCount > 1 ? 's' : ''}</span>}
+          <a href="/" className="text-[#F3E8FF]/30 hover:text-white text-sm transition">← Voltar</a>
+        </div>
       </header>
 
-      <div className="relative max-w-2xl mx-auto p-8">
+      <div className="relative z-10 max-w-5xl mx-auto px-6 py-8">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
           <h1 className="text-3xl sm:text-4xl font-black text-white" style={{ fontFamily: "'DM Sans', sans-serif" }}>Conecte suas redes</h1>
           <p className="text-[#F3E8FF]/50 mt-2 text-sm">Quanto mais redes, mais preciso o Claudemiro.</p>
-          {connectedCount > 0 && <p className="text-purple-400 text-sm mt-2 font-medium">{connectedCount}/8 redes conectadas</p>}
         </motion.div>
 
-        {showInstagram && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#E4405F"><path d={SVG_PATHS.instagram}/></svg>
-            <Input value={instagramUrl} onChange={e => setInstagramUrl(e.target.value)} placeholder="URL do perfil (instagram.com/fulano)" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleInstagramConnect()} autoFocus />
-            <button onClick={handleInstagramConnect} disabled={!instagramUrl || connecting === 'instagram'} className="bg-pink-600 hover:bg-pink-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'instagram' ? '...' : 'OK'}</button>
-            <button onClick={() => setShowInstagram(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
-          </motion.div>
-        )}
+        {/* Modais de input */}
+        {showInstagram && <InputModal icon={SVG_PATHS.instagram} color="#E4405F" value={instagramUrl} onChange={setInstagramUrl} onOk={handleInstagramConnect} onClose={() => setShowInstagram(false)} loading={connecting === 'instagram'} placeholder="URL do perfil (instagram.com/fulano)" />}
+        {showTiktok && <InputModal icon={SVG_PATHS.tiktok} color="#FFFFFF" value={tiktokUrl} onChange={setTiktokUrl} onOk={handleTiktokConnect} onClose={() => setShowTiktok(false)} loading={connecting === 'tiktok'} placeholder="URL do perfil (tiktok.com/@fulano)" />}
+        {showX && <InputModal icon={SVG_PATHS.x} color="#FFFFFF" value={xUrl} onChange={setXUrl} onOk={handleXConnect} onClose={() => setShowX(false)} loading={connecting === 'x'} placeholder="URL do perfil (x.com/fulano)" />}
+        {showGithub && <InputModal icon={SVG_PATHS.github} color="#FFFFFF" value={githubUrl} onChange={setGithubUrl} onOk={handleGithubConnect} onClose={() => setShowGithub(false)} loading={connecting === 'github'} placeholder="github.com/fulano" />}
+        {showLinkedin && <InputModal icon={SVG_PATHS.linkedin} color="#0A66C2" value={linkedinUrl} onChange={setLinkedinUrl} onOk={handleLinkedinConnect} onClose={() => setShowLinkedin(false)} loading={connecting === 'linkedin'} placeholder="linkedin.com/in/fulano" />}
+        {showReddit && <InputModal icon={SVG_PATHS.reddit} color="#FF4500" value={redditUrl} onChange={setRedditUrl} onOk={handleRedditConnect} onClose={() => setShowReddit(false)} loading={connecting === 'reddit'} placeholder="reddit.com/u/fulano" />}
+        {showSteam && <InputModal icon={SVG_PATHS.steam} color="#1B2838" value={steamId} onChange={setSteamId} onOk={handleSteamConnect} onClose={() => setShowSteam(false)} loading={connecting === 'steam'} placeholder="Steam ID ou URL do perfil" />}
 
-        {showTiktok && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#FFFFFF"><path d={SVG_PATHS.tiktok}/></svg>
-            <Input value={tiktokUrl} onChange={e => setTiktokUrl(e.target.value)} placeholder="URL do perfil (tiktok.com/@fulano)" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleTiktokConnect()} autoFocus />
-            <button onClick={handleTiktokConnect} disabled={!tiktokUrl || connecting === 'tiktok'} className="bg-gray-600 hover:bg-gray-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'tiktok' ? '...' : 'OK'}</button>
-            <button onClick={() => setShowTiktok(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
-          </motion.div>
-        )}
-
-        {showX && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#FFFFFF"><path d={SVG_PATHS.x}/></svg>
-            <Input value={xUrl} onChange={e => setXUrl(e.target.value)} placeholder="URL do perfil (x.com/fulano)" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleXConnect()} autoFocus />
-            <button onClick={handleXConnect} disabled={!xUrl || connecting === 'x'} className="bg-gray-600 hover:bg-gray-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'x' ? '...' : 'OK'}</button>
-            <button onClick={() => setShowX(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
-          </motion.div>
-        )}
-
-        {showGithub && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#FFFFFF"><path d={SVG_PATHS.github}/></svg>
-            <Input value={githubUrl} onChange={e => setGithubUrl(e.target.value)} placeholder="github.com/fulano" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleGithubConnect()} autoFocus />
-            <button onClick={handleGithubConnect} disabled={!githubUrl || connecting === 'github'} className="bg-purple-600 hover:bg-purple-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'github' ? '...' : 'OK'}</button>
-            <button onClick={() => setShowGithub(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
-          </motion.div>
-        )}
-
-        {showLinkedin && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#0A66C2"><path d={SVG_PATHS.linkedin}/></svg>
-            <Input value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} placeholder="linkedin.com/in/fulano" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleLinkedinConnect()} autoFocus />
-            <button onClick={handleLinkedinConnect} disabled={!linkedinUrl || connecting === 'linkedin'} className="bg-blue-600 hover:bg-blue-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'linkedin' ? '...' : 'OK'}</button>
-            <button onClick={() => setShowLinkedin(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
-          </motion.div>
-        )}
-
-        {showReddit && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#FF4500"><path d={SVG_PATHS.reddit}/></svg>
-            <Input value={redditUrl} onChange={e => setRedditUrl(e.target.value)} placeholder="reddit.com/u/fulano" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleRedditConnect()} autoFocus />
-            <button onClick={handleRedditConnect} disabled={!redditUrl || connecting === 'reddit'} className="bg-orange-600 hover:bg-orange-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'reddit' ? '...' : 'OK'}</button>
-            <button onClick={() => setShowReddit(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
-          </motion.div>
-        )}
-
-        {showSteam && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-6 flex gap-3 items-center">
-            <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="#1B2838"><path d={SVG_PATHS.steam}/></svg>
-            <Input value={steamId} onChange={e => setSteamId(e.target.value)} placeholder="Steam ID ou URL do perfil" className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && handleSteamConnect()} autoFocus />
-            <button onClick={handleSteamConnect} disabled={!steamId || connecting === 'steam'} className="bg-blue-600 hover:bg-blue-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{connecting === 'steam' ? '...' : 'OK'}</button>
-            <button onClick={() => setShowSteam(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
-          </motion.div>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {PLATFORMS.map((p, i) => {
-            const connected = connections.has(p.id)
-            const conn = connections.get(p.id)
-            const svgPath = SVG_PATHS[p.id]
-            const brandColor = COLORS[p.id] || '#A855F7'
-
-            return (
-              <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                className={`glass-card p-4 transition-all ${connected ? 'border-green-500/20' : 'hover:border-white/[0.10]'}`}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl ${p.bg} flex items-center justify-center`}>
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill={brandColor}><path d={svgPath}/></svg>
+        {/* Seção: Conectadas */}
+        {connectedCount > 0 && (
+          <div className="mb-10">
+            <h2 className="text-sm font-bold text-[#F3E8FF]/40 uppercase tracking-wider mb-4">Suas redes</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {PLATFORMS.filter(p => connections.has(p.id)).map((p, i) => {
+                const conn = connections.get(p.id)
+                const svgPath = SVG_PATHS[p.id]
+                const brandColor = COLORS[p.id] || '#A855F7'
+                return (
+                  <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                    className="glass-card p-4 flex flex-col justify-between min-h-[170px] group border border-green-500/10 hover:border-green-500/20 transition-all"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-9 h-9 rounded-lg ${p.bg} flex items-center justify-center`}>
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill={brandColor}><path d={svgPath} /></svg>
+                          </div>
+                          <span className="font-semibold text-sm">{p.name}</span>
+                        </div>
+                        <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">✓</span>
+                      </div>
+                      <div className="text-xs text-[#F3E8FF]/25 space-y-0.5">
+                        {(conn.raw_data?.profile?.avatarfull || conn.raw_data?.avatar_url) && (
+                          <div className="flex items-center gap-2 mb-1">
+                            <img src={proxyImage(conn.raw_data.profile?.avatarfull || conn.raw_data.avatar_url)} alt="" className="w-5 h-5 rounded-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                            <span>{conn.platform_username}</span>
+                          </div>
+                        )}
+                        {!conn.raw_data?.profile?.avatarfull && !conn.raw_data?.avatar_url && conn.platform_username && <p>👤 {conn.platform_username}</p>}
+                        {p.id === 'steam' && conn.raw_data?.games && <p>🎮 {Math.round(conn.raw_data.games.reduce((s: number, g: any) => s + (g.playtime_forever || 0), 0) / 60)}h de jogo</p>}
+                        {p.id === 'discord' && conn.raw_data?.guilds && <p>💬 {conn.raw_data.guilds.length} servidores</p>}
+                        {p.id === 'youtube' && conn.raw_data?.channel && <><p>📺 {conn.raw_data.channel.statistics?.subscriberCount || 0} inscritos</p><p>👥 Segue {conn.raw_data.subscriptions?.length || 0} canais</p></>}
+                        {p.id === 'twitch' && conn.raw_data?.follows && <p>📺 {conn.raw_data.follows.length} canais seguidos</p>}
+                        {p.id === 'instagram' && conn.raw_data?.followers && <><p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p><p>👤 Seguindo {parseInt(conn.raw_data.following || 0).toLocaleString()}</p></>}
+                        {p.id === 'tiktok' && <><p>👥 {(parseInt(conn.raw_data.followers || 0)).toLocaleString()} seguidores</p><p>👤 Seguindo {(parseInt(conn.raw_data.following || 0)).toLocaleString()}</p><p>🎬 {(parseInt(conn.raw_data.videos || 0)).toLocaleString()} vídeos</p></>}
+                        {p.id === 'x' && conn.raw_data?.followers && <><p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p><p>🐦 {parseInt(conn.raw_data.tweets || 0).toLocaleString()} tweets</p></>}
+                        {p.id === 'github' && conn.raw_data?.followers !== undefined && <><p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p><p>📦 {parseInt(conn.raw_data.repos || 0).toLocaleString()} repositórios</p></>}
+                        {p.id === 'reddit' && conn.raw_data?.followers !== undefined && <><p>⬆️ {parseInt(conn.raw_data.link_karma || 0).toLocaleString()} karma posts</p><p>💬 {parseInt(conn.raw_data.comment_karma || 0).toLocaleString()} karma comentários</p></>}
+                      </div>
                     </div>
-                    <span className="font-semibold text-sm">{p.name}</span>
+                    <button onClick={() => handleDisconnect(p.id)} className="self-end text-[10px] text-[#F3E8FF]/10 hover:text-red-400/60 transition-all mt-2 opacity-0 group-hover:opacity-100">✕</button>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Seção: Disponíveis */}
+        <div>
+          <h2 className="text-sm font-bold text-[#F3E8FF]/25 uppercase tracking-wider mb-4">Adicionar mais</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {PLATFORMS.filter(p => !connections.has(p.id)).map((p, i) => {
+              const svgPath = SVG_PATHS[p.id]
+              const brandColor = COLORS[p.id] || '#A855F7'
+              return (
+                <motion.div key={p.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+                  className="glass-card p-4 flex flex-col justify-center items-center min-h-[170px] gap-3 opacity-60 hover:opacity-100 transition-all hover:border-white/[0.1] group"
+                >
+                  <div className={`w-10 h-10 rounded-xl ${p.bg} flex items-center justify-center`}>
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill={brandColor}><path d={svgPath} /></svg>
                   </div>
-                  {connected ? (
-                    <span className="text-xs bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-medium">✓ Conectado</span>
+                  <span className="text-sm font-medium text-[#F3E8FF]/50 group-hover:text-white transition-colors">{p.name}</span>
+                  {p.oauth ? (
+                    <button onClick={() => handleConnect(p.id)} className="text-xs bg-white/[0.05] hover:bg-white/[0.10] text-[#F3E8FF]/50 hover:text-white px-3 py-1.5 rounded-lg transition-all">Conectar</button>
+                  ) : p.id === 'steam' ? (
+                    <button onClick={() => setShowSteam(true)} className="text-xs bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 px-3 py-1.5 rounded-lg transition-all">Conectar</button>
+                  ) : p.id === 'instagram' ? (
+                    <button onClick={() => setShowInstagram(true)} className="text-xs bg-pink-600/10 hover:bg-pink-600/20 text-pink-400 px-3 py-1.5 rounded-lg transition-all">Conectar</button>
+                  ) : p.id === 'tiktok' ? (
+                    <button onClick={() => setShowTiktok(true)} className="text-xs bg-gray-600/10 hover:bg-gray-600/20 text-gray-400 px-3 py-1.5 rounded-lg transition-all">Conectar</button>
+                  ) : p.id === 'x' ? (
+                    <button onClick={() => setShowX(true)} className="text-xs bg-gray-600/10 hover:bg-gray-600/20 text-gray-400 px-3 py-1.5 rounded-lg transition-all">Conectar</button>
+                  ) : p.id === 'github' ? (
+                    <button onClick={() => setShowGithub(true)} className="text-xs bg-purple-600/10 hover:bg-purple-600/20 text-purple-400 px-3 py-1.5 rounded-lg transition-all">Conectar</button>
+                  ) : p.id === 'reddit' ? (
+                    <button onClick={() => setShowReddit(true)} className="text-xs bg-orange-600/10 hover:bg-orange-600/20 text-orange-400 px-3 py-1.5 rounded-lg transition-all">Conectar</button>
                   ) : (
-                    <span className="text-xs text-[#F3E8FF]/20">Não conectado</span>
+                    <span className="text-[10px] text-[#F3E8FF]/10">Em breve</span>
                   )}
-                </div>
-
-                {connected && (
-                  <div className="text-xs text-[#F3E8FF]/25 space-y-1 mb-2">
-                    {(conn.raw_data?.profile?.avatarfull || conn.raw_data?.avatar_url) && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <img src={proxyImage(conn.raw_data.profile?.avatarfull || conn.raw_data.avatar_url)} alt="" className="w-6 h-6 rounded-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
-                        <span>{conn.platform_username}</span>
-                      </div>
-                    )}
-                    {!conn.raw_data?.profile?.avatarfull && !conn.raw_data?.avatar_url && conn.platform_username && (
-                      <p>👤 {conn.platform_username}</p>
-                    )}
-                    {p.id === 'steam' && conn.raw_data?.games && (
-                      <p>🎮 {Math.round(conn.raw_data.games.reduce((s: number, g: any) => s + (g.playtime_forever || 0), 0) / 60)}h de jogo</p>
-                    )}
-                    {p.id === 'discord' && conn.raw_data?.guilds && (
-                      <p>💬 {conn.raw_data.guilds.length} servidores</p>
-                    )}
-                    {p.id === 'youtube' && conn.raw_data?.channel && (
-                      <div>
-                        <p>📺 {conn.raw_data.channel.statistics?.subscriberCount || 0} inscritos</p>
-                        <p>▶️ {conn.raw_data.channel.statistics?.videoCount || 0} vídeos</p>
-                        <p>👥 Segue {conn.raw_data.subscriptions?.length || 0} canais</p>
-                      </div>
-                    )}
-                    {p.id === 'twitch' && conn.raw_data?.follows && (
-                      <p>📺 {conn.raw_data.follows.length} canais seguidos</p>
-                    )}
-                    {p.id === 'instagram' && conn.raw_data?.followers && (
-                      <div>
-                        <p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p>
-                        <p>👤 Seguindo {parseInt(conn.raw_data.following || 0).toLocaleString()}</p>
-                      </div>
-                    )}
-                    {p.id === 'tiktok' && (
-                      <div>
-                        <p>👥 {(parseInt(conn.raw_data.followers || 0)).toLocaleString()} seguidores</p>
-                        <p>👤 Seguindo {(parseInt(conn.raw_data.following || 0)).toLocaleString()}</p>
-                        <p>🎬 {(parseInt(conn.raw_data.videos || 0)).toLocaleString()} vídeos</p>
-                      </div>
-                    )}
-                    {p.id === 'x' && conn.raw_data?.followers && (
-                      <div>
-                        <p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p>
-                        <p>👤 Seguindo {parseInt(conn.raw_data.following || 0).toLocaleString()}</p>
-                        <p>🐦 {parseInt(conn.raw_data.tweets || 0).toLocaleString()} tweets</p>
-                      </div>
-                    )}
-                    {p.id === 'github' && conn.raw_data?.followers !== undefined && (
-                      <div>
-                        <p>👥 {parseInt(conn.raw_data.followers).toLocaleString()} seguidores</p>
-                        <p>📦 {parseInt(conn.raw_data.repos || 0).toLocaleString()} repositórios</p>
-                        {conn.raw_data.updated_at && <p>🕐 Ativo {new Date(conn.raw_data.updated_at).toLocaleDateString('pt-BR')}</p>}
-                      </div>
-                    )}
-                    {p.id === 'reddit' && conn.raw_data?.followers !== undefined && (
-                      <div>
-                        <p>⬆️ {parseInt(conn.raw_data.link_karma || 0).toLocaleString()} karma posts</p>
-                        <p>💬 {parseInt(conn.raw_data.comment_karma || 0).toLocaleString()} karma comentários</p>
-                        {conn.raw_data.created_utc && <p>🕐 Desde {new Date(conn.raw_data.created_utc * 1000).toLocaleDateString('pt-BR')}</p>}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {connected ? (
-                  <button onClick={() => handleDisconnect(p.id)} className="text-xs text-red-400/50 hover:text-red-400 transition mt-1">Desconectar</button>
-                ) : p.oauth ? (
-                  <button onClick={() => handleConnect(p.id)} className={`w-full bg-gradient-to-r ${p.id === 'spotify' ? 'from-green-500 to-green-600' : p.id === 'discord' ? 'from-indigo-500 to-indigo-600' : p.id === 'twitch' ? 'from-purple-600 to-purple-800' : 'from-red-500 to-red-600'} hover:opacity-90 text-white text-sm font-bold py-2.5 rounded-xl transition`}>
-                    Conectar {p.name}
-                  </button>
-                ) : p.id === 'steam' ? (
-                  <button onClick={() => setShowSteam(true)} className="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar Steam</button>
-                ) : p.id === 'instagram' ? (
-                  <button onClick={() => setShowInstagram(true)} className="w-full bg-pink-600/20 hover:bg-pink-600/30 text-pink-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar Instagram</button>
-                ) : p.id === 'tiktok' ? (
-                  <button onClick={() => setShowTiktok(true)} className="w-full bg-gray-600/20 hover:bg-gray-600/30 text-gray-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar TikTok</button>
-                ) : p.id === 'x' ? (
-                  <button onClick={() => setShowX(true)} className="w-full bg-gray-600/20 hover:bg-gray-600/30 text-gray-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar X</button>
-                ) : p.id === 'github' ? (
-                  <button onClick={() => setShowGithub(true)} className="w-full bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar GitHub</button>
-                ) : p.id === 'linkedin' ? (
-                  <button onClick={() => setShowLinkedin(true)} className="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar LinkedIn</button>
-                ) : p.id === 'reddit' ? (
-                  <button onClick={() => setShowReddit(true)} className="w-full bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 text-sm font-bold py-2.5 rounded-xl transition">Conectar Reddit</button>
-                ) : (
-                  <button className="w-full bg-white/[0.02] text-[#F3E8FF]/15 text-sm font-medium py-2.5 rounded-xl cursor-not-allowed">Em breve</button>
-                )}
-              </motion.div>
-            )
-          })}
+                </motion.div>
+              )
+            })}
+          </div>
         </div>
 
         {connectedCount >= 1 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mt-8">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mt-10">
             <a href="/chat" className="inline-flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-bold px-8 py-4 rounded-2xl text-lg transition-all shadow-[0_0_20px_rgba(168,85,247,0.2)] hover:shadow-[0_0_30px_rgba(168,85,247,0.35)]">
               🧿 Falar com Claudemiro
             </a>
@@ -413,5 +334,20 @@ export default function ConnectPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Componente de modal de input — reutilizável
+function InputModal({ icon, color, value, onChange, onOk, onClose, loading, placeholder }: {
+  icon: string; color: string; value: string; onChange: (v: string) => void;
+  onOk: () => void; onClose: () => void; loading: boolean; placeholder: string;
+}) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4 mb-4 flex gap-3 items-center">
+      <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill={color}><path d={icon} /></svg>
+      <Input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1" onKeyDown={e => e.key === 'Enter' && onOk()} autoFocus />
+      <button onClick={onOk} disabled={!value || loading} className="bg-purple-600 hover:bg-purple-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition">{loading ? '...' : 'OK'}</button>
+      <button onClick={onClose} className="text-[#F3E8FF]/30 hover:text-white text-sm">✕</button>
+    </motion.div>
   )
 }

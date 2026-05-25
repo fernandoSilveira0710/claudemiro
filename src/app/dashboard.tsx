@@ -188,13 +188,17 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
             </motion.div>
           )}
 
-          {/* Botões */}
-          <div className="flex flex-col items-center gap-3 pt-2">
+          {/* Link adicionar redes - abaixo dos badges */}
+          {connectionsCount > 0 && (
+            <a href="/connect" className="inline-flex items-center gap-1.5 text-[#F3E8FF]/25 hover:text-[#F3E8FF]/50 text-xs font-medium transition-colors">
+              + Adicionar rede social
+            </a>
+          )}
+
+          {/* Botão principal */}
+          <div className="flex flex-col items-center gap-3 pt-1">
             <a href="/chat" className="inline-flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-bold px-10 py-4 rounded-2xl shadow-[0_0_30px_rgba(168,85,247,0.25)] hover:shadow-[0_0_45px_rgba(168,85,247,0.45)] transition-all text-lg">
               🧿 Falar com Claudemiro
-            </a>
-            <a href="/connect" className="inline-flex items-center gap-1.5 text-[#F3E8FF]/30 hover:text-[#F3E8FF]/60 text-xs font-medium transition-colors">
-              + Adicionar rede social
             </a>
           </div>
         </div>
