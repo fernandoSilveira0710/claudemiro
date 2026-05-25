@@ -325,12 +325,17 @@ export default function ConnectPage() {
           </div>
         </div>
 
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mt-10">
+          <a href="/" className="inline-flex items-center gap-1.5 text-[#F3E8FF]/30 hover:text-[#F3E8FF]/60 text-sm font-medium transition-colors">
+            ← Voltar para o Dashboard
+          </a>
+        </motion.div>
       </div>
     </div>
   )
 }
 
-// Componente de modal de input — reutilizável
+// Componente de modal de input
 function InputModal({ icon, color, value, onChange, onOk, onClose, loading, placeholder }: {
   icon: string; color: string; value: string; onChange: (v: string) => void;
   onOk: () => void; onClose: () => void; loading: boolean; placeholder: string;

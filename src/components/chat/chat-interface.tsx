@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ClaudemiroBot } from '@/components/claudemiro-bot'
 
 type Message = {
   role: 'claudemiro' | 'user'
@@ -91,9 +92,9 @@ export function ChatInterface() {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring' }}
-            className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-4xl shadow-[0_0_30px_rgba(168,85,247,0.3)]"
+            className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center shadow-[0_0_30px_rgba(168,85,247,0.3)] overflow-hidden"
           >
-            🧿
+            <div className="scale-[3.5]"><ClaudemiroBot /></div>
           </motion.div>
 
           <div>
@@ -143,8 +144,8 @@ export function ChatInterface() {
       {/* Header */}
       <header className="border-b border-white/[0.06] p-4 flex items-center justify-between bg-[#0D0221]/80 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(168,85,247,0.3)]">
-            🧿
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.3)] overflow-hidden">
+            <div className="scale-[1.8]"><ClaudemiroBot /></div>
           </div>
           <div>
             <h1 className="font-bold text-white text-sm">Claudemiro</h1>
