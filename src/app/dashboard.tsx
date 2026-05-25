@@ -105,8 +105,8 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-pink-600/10 rounded-full blur-[128px]" />
       </div>
 
-      {/* Header com mais padding */}
-      <header className="relative z-10 border-b border-white/[0.06] px-6 py-4 flex items-center justify-between backdrop-blur-sm">
+      {/* Header */}
+      <header className="relative z-10 border-b border-white/[0.06] px-8 py-5 flex items-center justify-between backdrop-blur-sm">
         <h1 className="text-xl font-black tracking-tight" style={{ fontFamily: "'DM Sans', sans-serif" }}>CLAUDEMIRO</h1>
         <div className="flex items-center gap-4">
           <span className="text-xs bg-purple-500/15 text-purple-300 px-3 py-1 rounded-full font-medium">{profile.plan}</span>
@@ -156,7 +156,7 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
             transition={{ delay: 0.3 }}
             className="relative mx-auto max-w-xs"
           >
-            <div className="glass-card px-4 py-2 text-sm text-[#F3E8FF]/70 italic">
+            <div className="glass-card px-4 py-2 text-sm text-[#F3E8FF]/70 italic border border-purple-500/10 shadow-[0_0_12px_rgba(168,85,247,0.04)]">
               &ldquo;{speech}&rdquo;
             </div>
             <div className="w-3 h-3 bg-[#1A0A33]/80 border-b border-r border-white/[0.06] rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2" />
@@ -166,20 +166,22 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
             E aí, {profile.display_name?.split(' ')[0]} 👋
           </h2>
           <p className="text-[#F3E8FF]/60 text-base max-w-md mx-auto font-medium">
-            {!vereditsCount ? 'Pronto pra descobrir o que suas redes revelam sobre você?' : 'Pronto pra mais um veredito? Claudemiro tá te esperando.'}
+            {!vereditsCount
+              ? `Pronto pra descobrir o que suas ${connectionsCount > 0 ? `${connectionsCount} redes` : 'redes'} revelam sobre você?`
+              : 'Pronto pra mais um veredito? Claudemiro tá te esperando.'}
           </p>
 
-          {/* Grade de redes conectadas */}
+          {/* Grade de redes conectadas - flex wrap */}
           {connectionsCount > 0 && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap justify-center gap-2 pt-2">
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap justify-center gap-2 pt-2 px-4">
               {connectionPlatforms.map(platform => {
                 const icon = PLATFORM_ICONS[platform]
                 if (!icon) return null
                 return (
-                  <span key={platform} className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400">
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d={icon.path} /></svg>
+                  <span key={platform} className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full bg-green-500/8 border border-green-500/15 text-green-400 whitespace-nowrap">
+                    <svg className="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d={icon.path} /></svg>
                     {icon.name}
-                    <span className="text-green-500/60 ml-0.5">✓</span>
+                    <span className="text-green-500/50 ml-0.5">✓</span>
                   </span>
                 )
               })}
@@ -187,12 +189,12 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
           )}
 
           {/* Botões */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <a href="/connect" className="inline-flex items-center justify-center gap-2 bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.10] text-white font-semibold px-6 py-3 rounded-2xl transition-all">
-              🔌 {connectionsCount ? `${connectionsCount} redes conectadas` : 'Conectar Redes'}
-            </a>
-            <a href="/chat" className="inline-flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-bold px-8 py-3 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.2)] hover:shadow-[0_0_30px_rgba(168,85,247,0.35)] transition-all">
+          <div className="flex flex-col items-center gap-3 pt-2">
+            <a href="/chat" className="inline-flex items-center justify-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-bold px-10 py-4 rounded-2xl shadow-[0_0_30px_rgba(168,85,247,0.25)] hover:shadow-[0_0_45px_rgba(168,85,247,0.45)] transition-all text-lg">
               🧿 Falar com Claudemiro
+            </a>
+            <a href="/connect" className="inline-flex items-center gap-1.5 text-[#F3E8FF]/30 hover:text-[#F3E8FF]/60 text-xs font-medium transition-colors">
+              + Adicionar rede social
             </a>
           </div>
         </div>
@@ -200,7 +202,7 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
         {/* Terminal de varredura */}
         {allScanLines.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
-            className="glass-card p-4 max-w-lg mx-auto">
+            className="glass-card p-4 max-w-lg mx-auto border border-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.04)]">
             <p className="text-[10px] text-[#F3E8FF]/25 font-mono uppercase tracking-wider mb-2">Terminal de Varredura</p>
             <div className="font-mono text-[11px] leading-relaxed text-[#F3E8FF]/35">
               {allScanLines.slice(scanIndex, scanIndex + 4).map((line, i) => (
