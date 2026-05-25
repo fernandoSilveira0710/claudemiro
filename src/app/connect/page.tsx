@@ -2,19 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { motion } from 'framer-motion'
 
 const PLATFORMS = [
-  { id: 'spotify', name: 'Spotify', icon: '🎵', color: 'from-green-500 to-green-700', oauth: true },
-  { id: 'steam', name: 'Steam', icon: '🎮', color: 'from-blue-800 to-blue-950', oauth: false },
-  { id: 'discord', name: 'Discord', icon: '💬', color: 'from-indigo-500 to-indigo-700', oauth: true },
-  { id: 'youtube', name: 'YouTube', icon: '▶️', color: 'from-red-500 to-red-700', oauth: true },
-  { id: 'instagram', name: 'Instagram', icon: '📸', color: 'from-pink-500 to-purple-600', oauth: false },
-  { id: 'tiktok', name: 'TikTok', icon: '🎬', color: 'from-gray-800 to-black', oauth: false },
-  { id: 'x', name: 'X / Twitter', icon: '🐦', color: 'from-gray-700 to-gray-900', oauth: false },
+  { id: 'spotify', name: 'Spotify', icon: '🎵', color: 'from-green-500 to-green-600', bg: 'bg-green-500/10', oauth: true },
+  { id: 'steam', name: 'Steam', icon: '🎮', color: 'from-blue-700 to-blue-900', bg: 'bg-blue-500/10', oauth: false },
+  { id: 'discord', name: 'Discord', icon: '💬', color: 'from-indigo-500 to-indigo-700', bg: 'bg-indigo-500/10', oauth: true },
+  { id: 'youtube', name: 'YouTube', icon: '▶️', color: 'from-red-500 to-red-700', bg: 'bg-red-500/10', oauth: true },
+  { id: 'instagram', name: 'Instagram', icon: '📸', color: 'from-pink-500 to-purple-500', bg: 'bg-pink-500/10', oauth: false },
+  { id: 'tiktok', name: 'TikTok', icon: '🎬', color: 'from-gray-700 to-black', bg: 'bg-gray-500/10', oauth: false },
+  { id: 'x', name: 'X / Twitter', icon: '🐦', color: 'from-gray-600 to-gray-800', bg: 'bg-gray-500/10', oauth: false },
 ]
 
 export default function ConnectPage() {
@@ -22,38 +20,28 @@ export default function ConnectPage() {
   const [connections, setConnections] = useState<Set<string>>(new Set())
   const [steamId, setSteamId] = useState('')
   const [connecting, setConnecting] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [showSteam, setShowSteam] = useState(false)
 
   useEffect(() => {
     loadConnections()
-    // Verificar query params de callback
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('success')) {
-      loadConnections()
-      window.history.replaceState({}, '', '/connect')
-    }
   }, [])
 
   const loadConnections = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
     const { data } = await supabase
       .from('social_connections')
       .select('platform')
       .eq('user_id', user.id)
-
     setConnections(new Set(data?.map(c => c.platform) || []))
-    setLoading(false)
   }
 
-  const handleConnect = async (platformId: string) => {
+  const handleConnect = (platformId: string) => {
     if (platformId === 'spotify') {
       window.location.href = '/api/auth/spotify'
     } else if (platformId === 'steam') {
-      // Abre modal/dialog pra digitar Steam ID (já tratado no estado)
+      setShowSteam(true)
     }
-    // Outras plataformas: placeholder
   }
 
   const handleSteamConnect = async () => {
@@ -67,27 +55,78 @@ export default function ConnectPage() {
     const data = await res.json()
     if (data.success) {
       setSteamId('')
+      setShowSteam(false)
       loadConnections()
     }
     setConnecting('')
   }
 
+  const connectedCount = connections.size
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-white/10 p-4 flex items-center justify-between">
-        <a href="/" className="text-2xl font-black">CLAUDEMIRO</a>
-        <a href="/" className="text-white/50 hover:text-white text-sm">← Voltar</a>
+    <div className="min-h-screen bg-[#0D0221] text-white">
+      {/* Glow */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-20 right-20 w-72 h-72 bg-purple-600/8 rounded-full blur-[100px]" />
+      </div>
+
+      <header className="relative border-b border-white/[0.06] p-4 flex items-center justify-between">
+        <a href="/" className="text-xl font-black tracking-tight" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+          CLAUDEMIRO
+        </a>
+        <a href="/" className="text-[#F3E8FF]/30 hover:text-white text-sm transition">
+          ← Voltar
+        </a>
       </header>
 
-      <div className="max-w-2xl mx-auto p-8">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-3xl font-black mb-2">Conecte suas redes</h1>
-          <p className="text-white/50 mb-8">
-            Quanto mais redes conectadas, mais preciso é o Claudemiro. Mínimo 2 para começar.
+      <div className="relative max-w-2xl mx-auto p-8">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
+          <h1
+            className="text-3xl sm:text-4xl font-black text-white"
+            style={{ fontFamily: "'DM Sans', sans-serif" }}
+          >
+            Conecte suas redes
+          </h1>
+          <p className="text-[#F3E8FF]/50 mt-2 text-sm">
+            Quanto mais redes, mais preciso o Claudemiro. Mínimo 1.
           </p>
+          {connectedCount > 0 && (
+            <p className="text-purple-400 text-sm mt-2 font-medium">
+              {connectedCount}/7 redes conectadas
+            </p>
+          )}
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Steam modal */}
+        {showSteam && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-4 mb-6 flex gap-3 items-center"
+          >
+            <span className="text-2xl">🎮</span>
+            <Input
+              value={steamId}
+              onChange={e => setSteamId(e.target.value)}
+              placeholder="Steam ID ou URL do perfil"
+              className="bg-white/[0.03] border-white/[0.06] text-white text-sm h-10 rounded-xl flex-1"
+              onKeyDown={e => e.key === 'Enter' && handleSteamConnect()}
+              autoFocus
+            />
+            <button
+              onClick={handleSteamConnect}
+              disabled={!steamId || connecting === 'steam'}
+              className="bg-blue-600 hover:bg-blue-500 disabled:bg-white/[0.05] text-white text-sm font-bold px-4 h-10 rounded-xl transition"
+            >
+              {connecting === 'steam' ? '...' : 'OK'}
+            </button>
+            <button onClick={() => setShowSteam(false)} className="text-[#F3E8FF]/30 hover:text-white text-sm">
+              ✕
+            </button>
+          </motion.div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {PLATFORMS.map((p, i) => {
             const connected = connections.has(p.id)
 
@@ -96,80 +135,58 @@ export default function ConnectPage() {
                 key={p.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className={`rounded-xl border border-white/10 overflow-hidden ${
-                  connected ? 'bg-white/5' : 'bg-white/[0.02]'
+                transition={{ delay: i * 0.04 }}
+                className={`glass-card p-4 transition-all ${
+                  connected ? 'border-green-500/20' : 'hover:border-white/[0.10]'
                 }`}
               >
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{p.icon}</span>
-                      <span className="font-semibold">{p.name}</span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl ${p.bg} flex items-center justify-center text-xl`}>
+                      {p.icon}
                     </div>
-                    {connected ? (
-                      <Badge className="bg-green-600/20 text-green-400 border-green-500/20">
-                        ✓ Conectado
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-white/30 border-white/10">
-                        Não conectado
-                      </Badge>
-                    )}
+                    <span className="font-semibold text-sm">{p.name}</span>
                   </div>
-
                   {connected ? (
-                    <p className="text-sm text-white/30">Conectado — dados sincronizados</p>
-                  ) : p.id === 'steam' ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={steamId}
-                        onChange={e => setSteamId(e.target.value)}
-                        placeholder="Steam ID ou URL do perfil"
-                        className="bg-white/5 border-white/10 text-white text-sm h-9"
-                        onKeyDown={e => e.key === 'Enter' && handleSteamConnect()}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={handleSteamConnect}
-                        disabled={!steamId || connecting === 'steam'}
-                        className="bg-blue-800 hover:bg-blue-700 h-9"
-                      >
-                        {connecting === 'steam' ? '...' : 'OK'}
-                      </Button>
-                    </div>
-                  ) : p.oauth ? (
-                    <Button
-                      onClick={() => handleConnect(p.id)}
-                      className={`w-full bg-gradient-to-r ${p.color} hover:opacity-90 text-white`}
-                    >
-                      Conectar {p.name}
-                    </Button>
+                    <span className="text-xs bg-green-500/10 text-green-400 px-2.5 py-1 rounded-full font-medium">
+                      ✓ Conectado
+                    </span>
                   ) : (
-                    <Button
-                      disabled
-                      className="w-full bg-white/5 text-white/30 cursor-not-allowed"
-                    >
-                      Em breve
-                    </Button>
+                    <span className="text-xs text-[#F3E8FF]/20">Não conectado</span>
                   )}
                 </div>
+
+                {!connected && (p.oauth ? (
+                  <button
+                    onClick={() => handleConnect(p.id)}
+                    className={`w-full bg-gradient-to-r ${p.color} hover:opacity-90 text-white text-sm font-bold py-2.5 rounded-xl transition`}
+                  >
+                    Conectar {p.name}
+                  </button>
+                ) : p.id === 'steam' ? (
+                  <button
+                    onClick={() => setShowSteam(true)}
+                    className="w-full bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-sm font-bold py-2.5 rounded-xl transition"
+                  >
+                    Conectar Steam
+                  </button>
+                ) : (
+                  <button className="w-full bg-white/[0.02] text-[#F3E8FF]/15 text-sm font-medium py-2.5 rounded-xl cursor-not-allowed">
+                    Em breve
+                  </button>
+                ))}
               </motion.div>
             )
           })}
         </div>
 
-        {connections.size >= 2 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center mt-8"
-          >
+        {connectedCount >= 1 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center mt-8">
             <a
               href="/chat"
-              className="inline-block bg-purple-600 hover:bg-purple-500 text-white font-bold px-8 py-4 rounded-xl text-lg transition"
+              className="inline-flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-bold px-8 py-4 rounded-2xl text-lg transition-all shadow-[0_0_20px_rgba(168,85,247,0.2)] hover:shadow-[0_0_30px_rgba(168,85,247,0.35)]"
             >
-              Falar com Claudemiro →
+              🧿 Falar com Claudemiro
             </a>
           </motion.div>
         )}
