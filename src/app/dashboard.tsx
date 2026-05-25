@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
 import { generateScanLines, getBotMood, getBotSpeech, getReturnSpeech } from '@/lib/scan-lines'
+import { useIdleTimer, getCombinedSpeech } from '@/lib/idle-timer'
 
 interface DashboardProps {
   profile: { username: string; display_name: string; plan: string }
@@ -34,7 +35,14 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
   const mood = getBotMood(connectionsCount)
   const returnSpeech = getReturnSpeech(lastSeenDays)
   const baseSpeech = getBotSpeech(connectionsCount, vereditsCount, connectionsData)
-  const speech = returnSpeech || baseSpeech
+  const idle = useIdleTimer(lastSeenDays)
+  const speech = getCombinedSpeech(idle.speech, returnSpeech, baseSpeech)
+
+  // Mood do robô: idle level sobrepõe o mood normal
+  const botMood = idle.mood !== 'normal'
+    ? { ...mood, label: idle.mood === 'furioso' ? 'Furioso 😤' : idle.mood === 'bravo' ? 'Bravo 😠' : 'Triste 😢', scale: idle.mood === 'furioso' ? 1.2 : 1.1, speed: idle.mood === 'furioso' ? 6 : 8 }
+    : mood
+
   const [scanIndex, setScanIndex] = useState(0)
 
   // Gerar todas as linhas de scan
@@ -112,7 +120,7 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
         <div className="text-center space-y-3 mb-8">
           <div className="relative mx-auto w-64 h-64 flex items-center justify-center">
             {connectionPlatforms.length > 0 && (
-              <div className="absolute inset-0 animate-spin" style={{ animationDuration: `${mood.speed}s` }}>
+              <div className="absolute inset-0 animate-spin" style={{ animationDuration: `${botMood.speed}s` }}>
                 {connectionPlatforms.map((platform, i) => {
                   const icon = PLATFORM_ICONS[platform]
                   if (!icon) return null
@@ -123,7 +131,7 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
                   const y = Math.sin(rad) * radius
                   return (
                     <div key={platform} className="absolute w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.03] border border-white/[0.06]"
-                      style={{ left: `calc(50% + ${x}px - 16px)`, top: `calc(50% + ${y}px - 16px)`, animation: `counter-spin ${mood.speed}s linear infinite` }}>
+                      style={{ left: `calc(50% + ${x}px - 16px)`, top: `calc(50% + ${y}px - 16px)`, animation: `counter-spin ${botMood.speed}s linear infinite` }}>
                       <svg className="w-4 h-4" viewBox="0 0 24 24" fill={icon.color}><path d={icon.path} /></svg>
                     </div>
                   )
@@ -135,7 +143,7 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
               animate={{ scale: 1, y: [0, -4, 0] }}
               transition={{ scale: { type: 'spring', stiffness: 200 }, y: { duration: 3, repeat: Infinity, ease: 'easeInOut' } }}
               className="relative z-10 w-28 h-28 flex items-center justify-center claude-bot-glow"
-              style={{ transform: `scale(${mood.scale})` }}
+              style={{ transform: `scale(${botMood.scale})` }}
             >
               <ClaudemiroBot />
             </motion.div>
