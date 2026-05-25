@@ -2,13 +2,14 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { VeredictCard } from '@/components/card/veredict-card'
 
-export default async function ResultadoPage({ params }: { params: { id: string } }) {
+export default async function ResultadoPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createServerSupabase()
 
   const { data: veredict } = await supabase
     .from('veredits')
     .select('*, profiles(username, display_name, avatar_url)')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (!veredict) {
