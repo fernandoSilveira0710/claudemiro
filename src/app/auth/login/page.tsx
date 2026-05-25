@@ -3,11 +3,14 @@
 import { useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
+import { toast } from 'sonner'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
 import { ParallaxIcons } from '@/components/parallax-icons'
 import { FloatingVeredicts } from '@/components/floating-veredicts'
 import { StatusTerminal } from '@/components/status-terminal'
 import { NetworkBadges } from '@/components/network-badges'
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 
 export default function LoginPage() {
   const supabase = createClient()
@@ -60,6 +63,15 @@ export default function LoginPage() {
   }, [])
 
   const handleGoogleLogin = async () => {
+    // Verificar se Supabase está configurado
+    if (!SUPABASE_URL || SUPABASE_URL.includes('xxxxxxxxxxxx')) {
+      toast.info('🔧 Ambiente de desenvolvimento', {
+        description: 'O backend (Supabase) ainda não foi configurado. O login real funcionará após configurar as credenciais no .env.local e deploy.',
+        duration: 6000,
+      })
+      return
+    }
+
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${location.origin}/auth/callback` },
