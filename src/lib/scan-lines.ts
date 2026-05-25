@@ -93,7 +93,49 @@ export function generateScanLines(platform: string, data: any): string[] {
   return lines
 }
 
-// Expressões do robô baseado no número de conexões
+// Frases do balão de fala do Claudemiro baseado nas conexões
+export function getBotSpeech(connectionsCount: number, vereditsCount: number): string {
+  const none = [
+    'Só 1 rede social? Tá com medo do que? 😒',
+    'Cadê as redes? Não vou te julgar... muito. 😐',
+    'Sem dados? Assim você me deixa entediado... 🥱',
+    'Conecta alguma coisa aí, pô. Tô no escuro aqui. 🌑',
+  ]
+  const few = [
+    'Hum, começando a se expor... já vi umas coisas aqui. 😏',
+    'Poucas redes, mas já deu pra sentir o cheiro. 👃',
+    'Tô montando seu dossiê, aguarde... 📋',
+    'Só isso? Tenho certeza que você tem mais podre por aí. 🕵️',
+  ]
+  const medium = [
+    'Tô vendo umas coisas bem interessantes aqui... 🤔',
+    'Seu perfil tá ficando suculento. Continua... 🧃',
+    'Já tenho material pra um veredito, hein? 📝',
+    'Olha, olha... que feed diversificado o seu. 🧐',
+  ]
+  const many = [
+    'Manda a carteira de trabalho também? 😂',
+    'Caraca, tu vive na internet! Tô amando. 🤩',
+    'Que banquete de dados! Claudemiro tá felizão. 🍽️',
+    'Todas as redes? Até o FBI tem menos informação. 🚔',
+  ]
+  const hasVeredicts = [
+    'Bora fazer outro veredito? O último ficou bom... 🎯',
+    'Quer se ver de novo? Seu último card tá te esperando. 🃏',
+    'Já te julguei antes, mas posso julgar de novo... 😈',
+    'Saudades de te expor. Bora mais um? 🔮',
+  ]
+
+  let pool: string[]
+  if (connectionsCount === 0) pool = none
+  else if (connectionsCount <= 2) pool = few
+  else if (connectionsCount <= 5) pool = medium
+  else if (vereditsCount > 0) pool = [...many, ...hasVeredicts]
+  else pool = many
+
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
 export function getBotMood(connectionsCount: number): { eyes: string; label: string; scale: number; speed: number } {
   if (connectionsCount === 0) return { eyes: 'normal', label: 'Neutro', scale: 1, speed: 20 }
   if (connectionsCount <= 3) return { eyes: 'sereno', label: 'Sereno', scale: 1.05, speed: 16 }

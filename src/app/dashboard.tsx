@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
-import { generateScanLines, getBotMood } from '@/lib/scan-lines'
+import { generateScanLines, getBotMood, getBotSpeech } from '@/lib/scan-lines'
 
 interface DashboardProps {
   profile: { username: string; display_name: string; plan: string }
@@ -31,6 +31,7 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
   const supabase = createClient()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mood = getBotMood(connectionsCount)
+  const speech = getBotSpeech(connectionsCount, vereditsCount)
   const [scanIndex, setScanIndex] = useState(0)
 
   // Gerar todas as linhas de scan
@@ -49,7 +50,7 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
     if (allScanLines.length === 0) return
     const interval = setInterval(() => {
       setScanIndex(prev => (prev + 1) % allScanLines.length)
-    }, 3000)
+    }, 5000)
     return () => clearInterval(interval)
   }, [allScanLines])
 
@@ -84,8 +85,6 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
   }, [])
 
   const handleLogout = async () => { await supabase.auth.signOut(); window.location.href = '/auth/login' }
-
-  const moodEmoji = mood.label.includes('Safado') ? '😏' : mood.label === 'Feliz' ? '😄' : mood.label === 'Sereno' ? '🙂' : '😐'
 
   return (
     <main className="min-h-screen bg-[#0D0221] text-white relative">
@@ -139,14 +138,18 @@ export function DashboardPage({ profile, vereditsCount, connectionsCount, connec
             </motion.div>
           </div>
 
-          {/* Mood indicator */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-xs text-[#F3E8FF]/30"
+          {/* Balão de fala do Claudemiro */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="relative mx-auto max-w-xs"
           >
-            {moodEmoji} Claudemiro está {mood.label.toLowerCase()}
-          </motion.p>
+            <div className="glass-card px-4 py-2 text-sm text-[#F3E8FF]/70 italic">
+              &ldquo;{speech}&rdquo;
+            </div>
+            <div className="w-3 h-3 bg-[#1A0A33]/80 border-b border-r border-white/[0.06] rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2" />
+          </motion.div>
 
           <h2 className="text-4xl sm:text-5xl font-black text-white" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             E aí, {profile.display_name?.split(' ')[0]} 👋
