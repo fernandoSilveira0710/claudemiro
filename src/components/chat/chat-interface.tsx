@@ -222,15 +222,18 @@ export function ChatInterface() {
         </div>
       </header>
 
-      {/* Robô centralizado */}
-      <div className="flex justify-center pt-6 pb-2">
-        <div className="w-24 h-24 flex items-center justify-center claude-bot-glow">
-          <ClaudemiroBot />
-        </div>
-      </div>
+      {/* Robô + Messages */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto w-full px-4">
+          {/* Robô centralizado */}
+          <div className="flex justify-center pt-6 pb-4">
+            <div className="w-24 h-24 flex items-center justify-center claude-bot-glow">
+              <ClaudemiroBot />
+            </div>
+          </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full">
+          {/* Messages */}
+          <div className="space-y-4 pb-4">
         <AnimatePresence>
           {messages.map((msg, i) => (
             <motion.div
@@ -284,6 +287,8 @@ export function ChatInterface() {
           )}
         </AnimatePresence>
         <div ref={messagesEndRef} />
+      </div>
+      </div>
       </div>
 
       {/* Input */}
