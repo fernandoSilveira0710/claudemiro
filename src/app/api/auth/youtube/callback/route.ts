@@ -57,7 +57,7 @@ export async function GET(request: Request) {
     token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
     platform_user_id: channel?.id,
     platform_username: channel?.snippet?.title,
-    raw_data: { channel, subscriptions, avatar_url: channel?.snippet?.thumbnails?.default?.url },
+    raw_data: { channel, subscriptions, avatar_url: channel?.snippet?.thumbnails?.default?.url || channel?.snippet?.thumbnails?.medium?.url || channel?.snippet?.thumbnails?.high?.url },
     last_synced_at: new Date().toISOString(),
   }, { onConflict: 'user_id,platform' })
 
