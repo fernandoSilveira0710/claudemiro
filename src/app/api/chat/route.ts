@@ -111,7 +111,10 @@ ${blocked.length ? blocked.join(', ') : 'nenhum bloqueado'}
 ## CATEGORIAS DISPONÍVEIS PARA EXPLORAR
 ${available.join(', ')}
 
-## PERGUNTAS QUE VOCÊ JÁ FEZ (não repita nem tema parecido)
+## PERGUNTAS JÁ FEITAS — PROIBIDO REPETIR TEMA OU INTENÇÃO
+Regra: uma pergunta nova é repetição se busca a mesma informação que uma já feita,
+mesmo usando palavras completamente diferentes. Exemplo: "você joga solo?" e
+"prefere campanha solo ou multiplayer?" são a mesma pergunta.
 ${questionsAsked}
 
 ## ÚLTIMAS MENSAGENS
@@ -120,11 +123,12 @@ ${recentHistory}
 ## SUA TAREFA
 Com base nos DADOS REAIS e no TOM acima:
 1. Escolha UMA categoria de [CATEGORIAS DISPONÍVEIS]
-2. Pense em um ângulo ESPECÍFICO dos dados reais para essa categoria (ex: se Steam tem 955h de Lethal Company, não pergunte "você joga games?", pergunte sobre co-op vs solo)
-3. Defina como o tom deve soar NESSA resposta específica
+2. Escolha um ângulo ESPECÍFICO baseado num dado real dos DADOS DO USUÁRIO
+3. Defina como o tom deve soar nessa resposta específica
+4. VERIFIQUE: seu angle busca a mesma informação que alguma pergunta já feita? Se sim, volte ao passo 2.
 
 Responda APENAS JSON:
-{"category":"categoria_escolhida","data_hook":"qual dado específico das redes você vai usar na pergunta (cite o dado literal)","angle":"o ângulo único da pergunta (não genérico)","tone_note":"como o tom se aplica aqui (ex: zoar as 955h, ou ser analítico sobre os repos)"}`
+{"category":"...","data_hook":"dado literal dos dados do usuário que vai usar","angle":"ângulo único — diferente de tudo já perguntado","tone_note":"como o tom se aplica aqui"}`
 }
 
 // ============================================================
@@ -139,32 +143,37 @@ function buildDialogPrompt(data: string, history: string, mode: string, reasonin
 
   return `Você é o Claudemiro. Tom FIXO desta sessão: ${toneVoice[mode] || toneVoice.casual}
 
-## DADOS REAIS DO USUÁRIO
+## DADOS REAIS DO USUÁRIO (única fonte de verdade)
 ${data}
 
 ## RACIOCÍNIO DA ETAPA ANTERIOR
 - Categoria: ${reasoning.category}
-- Dado específico a usar: ${reasoning.data_hook || reasoning.connection || ''}
+- Dado específico a usar: ${reasoning.data_hook || ''}
 - Ângulo da pergunta: ${reasoning.angle || ''}
 - Tom nesta resposta: ${reasoning.tone_note || ''}
 
 ## HISTÓRICO
 ${history || 'Início da conversa.'}
 
+## REGRA ANTI-INVENÇÃO
+Antes de escrever a question:
+- O data_hook acima existe literalmente nos DADOS REAIS?
+- Se NÃO existe nos dados → ajuste o ângulo para algo que está nos dados.
+- NUNCA conecte a resposta do usuário com informações que você não tem.
+
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "reação ao que o usuário acabou de dizer — 1 frase curta, no tom certo, pode usar o dado_hook pra zoar ou analisar",
-  "question": "pergunta ÚNICA sobre ${reasoning.category} — use o ângulo definido, cite o dado real se couber, 1 frase",
+  "comment": "reação ao que o usuário acabou de dizer — 1 frase curta, no tom certo",
+  "question": "FORMATO OBRIGATÓRIO: comece com o dado real do data_hook ou com uma provocação baseada nele. NUNCA comece com 'Qual é o seu', 'O que você acha', 'Como você se sente'. Soe como alguém que já sabe sobre você, não como formulário.",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
 REGRAS ABSOLUTAS:
 - comment: reaja ao que ele ACABOU de dizer (última linha do histórico)
-- question: baseada no ângulo E no dado real — NUNCA genérica como "você curte X?"
-- options: 2-3 opções curtas e específicas, ou null se for pergunta aberta. Quando tiver opções, a última SEMPRE é "Outro 🖊️"
-- NUNCA invente dados que não estão nos dados reais acima
-- NUNCA repita uma pergunta que já aparece no histórico`
+- question: use o data_hook e o angle — se não tiver dado real para sustentar, mude o angle
+- options: 2-3 itens específicos ou null. Última opção SEMPRE "Outro 🖊️" quando presente
+- NUNCA repita pergunta do histórico`
 }
 
 // ============================================================
@@ -262,6 +271,14 @@ export async function POST(req: Request) {
   const dataStr = digest(s.scanned_data || {})
   const hist = formatHistoryString(msgs)
 
+  // Se já ofereceu veredito antes, não voltar ao loop
+  if (asked.includes('veredito')) {
+    const parsed: any = { comment: 'Beleza, vamos continuar então.', question: 'O que mais quer saber?', options: ['Gerar veredito', 'Continuar'] }
+    msgs.push({ role: 'claudemiro', content: '', parsed, reasoning: {} })
+    await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', s.id)
+    return NextResponse.json({ type: 'reply', parsed, interactionCount: asked.length, suggestVeredict: true, sessionId: s.id })
+  }
+
   let reasoningPrompt: string
   if (asked.length >= MAX_INTERACTIONS) {
     reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions) + '\n[Já são ' + (asked.length + 1) + ' interações. category DEVE ser "veredito".]'
@@ -276,12 +293,20 @@ export async function POST(req: Request) {
   if (reasoning.category === 'veredito') {
     const parsed: any = { comment: 'Já tenho uma opinião formada sobre você.', question: 'Quer ver?', options: ['Gerar veredito', 'Continuar'] }
     msgs.push({ role: 'claudemiro', content: '', parsed, reasoning })
-    await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', s.id)
-    return NextResponse.json({ type: 'reply', parsed, interactionCount: asked.length + 1, suggestVeredict: true, sessionId: s.id })
+    // ✅ salvar 'veredito' para não repetir o loop
+    const newAsked = [...asked, 'veredito']
+    const newAskedQuestions = [...askedQuestions, 'Quer ver?']
+    await supabase.from('chat_sessions').update({
+      messages: msgs,
+      phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions }
+    }).eq('id', s.id)
+    return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: true, sessionId: s.id })
   }
 
+  // Temperature dinâmica: reduzir em modo engraçado pra evitar alucinação
+  const dialogTemp = mode === 'engracado' ? 0.65 : mode === 'profissional' ? 0.5 : 0.7
   dialogPrompt = buildDialogPrompt(dataStr, hist, s.mode, reasoning)
-  const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
+  const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: dialogTemp, maxTokens: 400, json: true })
   const parsed = safeParse(dialogJson)
   msgs.push({ role: 'claudemiro', content: dialogJson, parsed, reasoning })
   const newAsked = [...asked, reasoning.category].filter(Boolean)

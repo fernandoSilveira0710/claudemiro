@@ -198,10 +198,10 @@ export function ChatInterface() {
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${msg.role === 'user' ? 'bg-purple-500/20 border border-purple-500/20 text-white rounded-br-md' : msg.veredict ? 'bg-purple-500/10 border border-purple-500/20 text-[#F3E8FF]' : 'bg-white/[0.03] border border-white/[0.05] text-[#F3E8FF] rounded-bl-md'}`}>
                     {msg.role === 'user' ? <p className="text-sm">{msg.content}</p> : msg.veredict ? <p className="text-sm whitespace-pre-wrap">{msg.content}</p> : (
-                      <div className="space-y-1">
-                        {msg.parsed?.comment && <p className="text-sm font-medium">{msg.parsed.comment}</p>}
-                        {msg.parsed?.question && <p className="text-sm text-[#F3E8FF]/70">{msg.parsed.question}</p>}
-                      </div>
+                      <p className="text-sm leading-relaxed">
+                        {msg.parsed?.comment && <span className="font-medium">{msg.parsed.comment} </span>}
+                        {msg.parsed?.question && <span className="text-[#F3E8FF]/80">{msg.parsed.question}</span>}
+                      </p>
                     )}
                   </div>
                 </motion.div>

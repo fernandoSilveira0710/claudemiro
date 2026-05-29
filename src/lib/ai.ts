@@ -80,16 +80,18 @@ export async function chatCompletion(
   if (modelOverride) {
     model = modelOverride
   } else {
-    // Detectar Ollama disponível, senão DeepSeek
-    try {
-      const res = await fetch('http://localhost:11434/api/tags')
-      if (res.ok) {
-        model = MODELS.qwen // Ollama local
-      } else {
-        throw new Error('no ollama')
+    // Usar variável de ambiente para forçar modelo em produção
+    const forcedModel = process.env.AI_MODEL
+    if (forcedModel && MODELS[forcedModel]) {
+      model = MODELS[forcedModel]
+    } else {
+      // Fallback: tenta Ollama local (dev), senão DeepSeek (prod)
+      try {
+        const res = await fetch('http://localhost:11434/api/tags', { signal: AbortSignal.timeout(500) })
+        model = res.ok ? MODELS.qwen : MODELS.deepseek
+      } catch {
+        model = MODELS.deepseek
       }
-    } catch {
-      model = MODELS.deepseek // Fallback cloud
     }
   }
 
