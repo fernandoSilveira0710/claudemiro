@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect } from 'react'
 import { motion, useSpring, useTransform } from 'framer-motion'
 
 interface ProgressBarProps {
@@ -9,180 +9,97 @@ interface ProgressBarProps {
   isDone?: boolean
 }
 
-// Partícula de água caindo
-function WaterParticle({ progress, index }: { progress: number; index: number }) {
-  const [active, setActive] = useState(false)
-  const [pos, setPos] = useState({ top: 0, size: 0, opacity: 0 })
-
-  useEffect(() => {
-    if (progress < 0.05) return
-    const delay = (index * 400 + Math.random() * 800)
-    const t = setTimeout(() => {
-      setPos({
-        top: Math.random() * (100 - progress * 100),
-        size: 2 + Math.random() * 3,
-        opacity: 0.3 + Math.random() * 0.5,
-      })
-      setActive(true)
-    }, delay)
-    return () => clearTimeout(t)
-  }, [progress, index])
-
-  if (!active) return null
-
-  return (
-    <motion.div
-      className="absolute left-1/2 -translate-x-1/2 rounded-full bg-cyan-300/70"
-      style={{
-        top: `${pos.top}%`,
-        width: pos.size,
-        height: pos.size * 1.6,
-      }}
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: [0, pos.opacity, 0], y: [0, 12, 24] }}
-      transition={{ duration: 1.2 + Math.random() * 0.8, repeat: Infinity, delay: Math.random() * 2 }}
-    />
-  )
-}
-
-// Bolha subindo na água
-function Bubble({ progress, index }: { progress: number; index: number }) {
-  const fillPercent = progress * 100
-
-  return (
-    <motion.div
-      className="absolute left-1/2 -translate-x-1/2 rounded-full border border-cyan-300/40 bg-white/5"
-      style={{
-        bottom: `${Math.random() * fillPercent * 0.8}%`,
-        width: 3 + index * 0.5,
-        height: 3 + index * 0.5,
-      }}
-      initial={{ opacity: 0, y: 0 }}
-      animate={{
-        opacity: [0, 0.6, 0],
-        y: [0, -(20 + index * 8)],
-        scale: [0.5, 1, 0.8],
-      }}
-      transition={{
-        duration: 2 + index * 0.4,
-        repeat: Infinity,
-        delay: index * 0.7 + Math.random() * 1.5,
-        ease: 'easeOut',
-      }}
-    />
-  )
-}
-
 export function ChatProgressBar({ interactionCount, maxInteractions = 10, isDone = false }: ProgressBarProps) {
   const rawProgress = isDone ? 1 : Math.min(interactionCount / maxInteractions, 1)
-  const spring = useSpring(0, { stiffness: 40, damping: 20 })
+  const spring = useSpring(0, { stiffness: 35, damping: 18 })
+  const heightPct = useTransform(spring, v => `${v * 100}%`)
 
-  useEffect(() => {
-    spring.set(rawProgress)
-  }, [rawProgress, spring])
+  useEffect(() => { spring.set(rawProgress) }, [rawProgress, spring])
 
-  // Cor muda conforme progresso: ciano → roxo → rosa
-  const getColor = (p: number) => {
-    if (p < 0.4) return { from: '#22D3EE', to: '#818CF8' }
-    if (p < 0.75) return { from: '#818CF8', to: '#A855F7' }
-    return { from: '#A855F7', to: '#EC4899' }
-  }
-
-  const colors = getColor(rawProgress)
-
-  // Segmentos de marco (cada 20%)
-  const milestones = [0.2, 0.4, 0.6, 0.8, 1.0]
+  // Cor em 3 fases
+  const fromColor = rawProgress < 0.45 ? '#22D3EE' : rawProgress < 0.75 ? '#818CF8' : '#A855F7'
+  const toColor   = rawProgress < 0.45 ? '#818CF8' : rawProgress < 0.75 ? '#A855F7' : '#EC4899'
+  const glowColor = rawProgress < 0.45 ? '34,211,238' : rawProgress < 0.75 ? '129,140,248' : '236,72,153'
 
   return (
-    <div className="absolute right-3 top-6 bottom-6 w-3 z-10 flex flex-col items-center">
+    <>
+      <style>{`
+        @keyframes bubble-rise-1 { 0%{transform:translateY(0) translateX(-50%) scale(.6);opacity:0} 20%{opacity:.7} 100%{transform:translateY(-60px) translateX(-50%) scale(.3);opacity:0} }
+        @keyframes bubble-rise-2 { 0%{transform:translateY(0) translateX(-50%) scale(.8);opacity:0} 30%{opacity:.5} 100%{transform:translateY(-80px) translateX(-50%) scale(.2);opacity:0} }
+        @keyframes bubble-rise-3 { 0%{transform:translateY(0) translateX(-50%) scale(.5);opacity:0} 25%{opacity:.6} 100%{transform:translateY(-50px) translateX(-50%) scale(.4);opacity:0} }
+        @keyframes wave-surface  { 0%,100%{transform:scaleX(.85) translateY(0)} 50%{transform:scaleX(1.15) translateY(-1px)} }
+        @keyframes bar-glow-pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+      `}</style>
 
-      {/* Trilho de fundo com textura */}
-      <div className="relative flex-1 w-full">
-        <div className="absolute inset-0 rounded-full bg-white/[0.04] overflow-hidden">
+      <div className="absolute right-2.5 top-6 bottom-6 w-3 z-10 flex flex-col items-center">
+        <div className="relative flex-1 w-full">
 
-          {/* Água enchendo — animação suave */}
-          <motion.div
-            className="absolute bottom-0 left-0 right-0 rounded-full overflow-hidden"
-            style={{ height: useTransform(spring, v => `${v * 100}%`) }}
-          >
-            {/* Gradiente da água */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background: `linear-gradient(to top, ${colors.from}, ${colors.to})`,
-                opacity: 0.9,
-              }}
-            />
+          {/* Trilho */}
+          <div className="absolute inset-0 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
 
-            {/* Superfície da água — onda */}
+            {/* Coluna de água */}
             <motion.div
-              className="absolute top-0 left-0 right-0 h-3"
-              style={{
-                background: `radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.5) 0%, transparent 70%)`,
-              }}
-              animate={{ scaleX: [0.8, 1.2, 0.8], y: [0, -1, 0] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-            />
+              className="absolute bottom-0 left-0 right-0 overflow-hidden rounded-full"
+              style={{ height: heightPct }}
+            >
+              {/* Gradiente */}
+              <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${fromColor}, ${toColor})` }} />
 
-            {/* Brilho lateral */}
-            <div
-              className="absolute inset-y-0 left-0 w-1/3 rounded-l-full"
-              style={{ background: 'linear-gradient(to right, rgba(255,255,255,0.25), transparent)' }}
-            />
+              {/* Brilho lateral esquerdo */}
+              <div className="absolute inset-y-0 left-0 w-1/3 rounded-l-full" style={{ background: 'linear-gradient(to right, rgba(255,255,255,0.28), transparent)' }} />
 
-            {/* Bolhas subindo */}
-            {rawProgress > 0.1 && Array.from({ length: 5 }).map((_, i) => (
-              <Bubble key={i} progress={rawProgress} index={i} />
+              {/* Onda na superfície */}
+              {rawProgress > 0.05 && (
+                <div
+                  className="absolute top-0 left-0 right-0 h-2.5"
+                  style={{
+                    background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.55) 0%, transparent 80%)',
+                    animation: 'wave-surface 1.8s ease-in-out infinite',
+                    transformOrigin: 'center top',
+                  }}
+                />
+              )}
+
+              {/* Bolhas — CSS puro, sem JS */}
+              {rawProgress > 0.15 && (
+                <>
+                  <div className="absolute left-1/2 rounded-full border border-white/30"
+                    style={{ width:3, height:3, bottom:'12%', animation:'bubble-rise-1 2.4s ease-out infinite', animationDelay:'0s' }} />
+                  <div className="absolute left-1/2 rounded-full border border-white/25"
+                    style={{ width:2, height:2, bottom:'25%', animation:'bubble-rise-2 3.1s ease-out infinite', animationDelay:'0.8s' }} />
+                  <div className="absolute left-1/2 rounded-full border border-white/20"
+                    style={{ width:2, height:2, bottom:'8%', animation:'bubble-rise-3 2.7s ease-out infinite', animationDelay:'1.5s' }} />
+                  {rawProgress > 0.5 && (
+                    <div className="absolute left-1/2 rounded-full border border-white/20"
+                      style={{ width:3, height:3, bottom:'40%', animation:'bubble-rise-1 3.5s ease-out infinite', animationDelay:'0.4s' }} />
+                  )}
+                </>
+              )}
+            </motion.div>
+
+            {/* Marcadores de fase */}
+            {[0.25, 0.5, 0.75].map((m, i) => (
+              <div key={i} className="absolute left-0 right-0 h-px" style={{
+                bottom: `${m * 100}%`,
+                background: rawProgress >= m ? `rgba(${glowColor},0.6)` : 'rgba(255,255,255,0.07)',
+              }} />
             ))}
-          </motion.div>
+          </div>
 
-          {/* Gotículas caindo de cima quando não está cheio */}
-          {rawProgress < 0.95 && rawProgress > 0 && Array.from({ length: 4 }).map((_, i) => (
-            <WaterParticle key={i} progress={rawProgress} index={i} />
-          ))}
+          {/* Glow externo quando quase cheio */}
+          {rawProgress > 0.75 && (
+            <div className="absolute inset-0 rounded-full pointer-events-none" style={{
+              boxShadow: `0 0 10px 2px rgba(${glowColor},0.45)`,
+              animation: 'bar-glow-pulse 1.6s ease-in-out infinite',
+            }} />
+          )}
         </div>
 
-        {/* Marcadores de marco */}
-        {milestones.map((m, i) => (
-          <div
-            key={i}
-            className="absolute left-0 right-0 flex items-center"
-            style={{ bottom: `${m * 100}%` }}
-          >
-            <motion.div
-              className="h-px w-full"
-              style={{
-                background: rawProgress >= m
-                  ? 'rgba(255,255,255,0.5)'
-                  : 'rgba(255,255,255,0.08)',
-              }}
-              animate={rawProgress >= m ? { opacity: [0.3, 0.8, 0.3] } : { opacity: 0.08 }}
-              transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
-            />
-          </div>
-        ))}
-
-        {/* Glow externo quando cheio ou quase */}
-        {rawProgress > 0.8 && (
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{
-              boxShadow: `0 0 12px 3px ${colors.to}60`,
-            }}
-            animate={{ opacity: [0.4, 1, 0.4] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-          />
-        )}
+        {/* Contador */}
+        <p className="text-[8px] text-white/20 mt-1.5 font-mono tabular-nums select-none">
+          {isDone ? '✓' : `${interactionCount}/${maxInteractions}`}
+        </p>
       </div>
-
-      {/* Contador embaixo */}
-      <motion.p
-        className="text-[8px] text-white/20 mt-1.5 font-mono tabular-nums"
-        animate={isDone ? { color: ['rgba(255,255,255,0.2)', 'rgba(168,85,247,0.8)', 'rgba(255,255,255,0.2)'] } : {}}
-        transition={{ duration: 2, repeat: Infinity }}
-      >
-        {isDone ? '✓' : `${interactionCount}/${maxInteractions}`}
-      </motion.p>
-    </div>
+    </>
   )
 }

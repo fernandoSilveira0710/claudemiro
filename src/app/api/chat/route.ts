@@ -75,12 +75,13 @@ function buildReasoningPrompt(
   const availableSources = presentSources.filter(s => !usedNetworkSources.includes(s))
   const redesUsadas = usedNetworkSources.length
   const topicosUsados = usedDataSources.filter(s => s === 'TOPICO').length
-  const totalFeitas = redesUsadas + topicosUsados
-  const deveUsarTopico = (redesUsadas >= REDES_QUOTA) ||
-    (topicosUsados < TOPICOS_QUOTA &&
-     totalFeitas > 0 &&
-     redesUsadas > 0 &&
-     (redesUsadas - topicosUsados) >= 2)
+  const totalFeitas = asked.length  // usa asked.length como fonte de verdade, não usedDataSources
+
+  // Padrão fixo: rede, rede, TOPICO, rede, rede, TOPICO, rede, rede, TOPICO, rede
+  // Posições 2,5,8 (0-indexado) = tópico pessoal
+  const TOPICO_POSITIONS = new Set([2, 5, 8])
+  const deveUsarTopico = TOPICO_POSITIONS.has(totalFeitas) ||
+    (redesUsadas >= REDES_QUOTA && topicosUsados < TOPICOS_QUOTA)
   const availablePersonal = available.filter(cat => PERSONAL_CATEGORIES.includes(cat))
 
   const tonePersonality: Record<string, string> = {
@@ -93,19 +94,25 @@ function buildReasoningPrompt(
   const questionsAsked = askedQuestions.length ? askedQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n') : 'Nenhuma ainda.'
 
   const tipoInstrucao = deveUsarTopico
-    ? `## TIPO AGORA: TÓPICO PESSOAL (não usa dados das redes)
-Categorias pessoais disponíveis: [${availablePersonal.length ? availablePersonal.join(', ') : available.join(', ')}]
-Explore a vida real, opinião e personalidade do usuário. Exemplos por categoria:
-- familia: é grudado na família ou independente raiz?
-- relacionamento: tá solteiro, enrolado ou complicado?
-- signo: qual o signo? acredita ou é cético?
-- infancia: qual memória de infância te define?
-- sonhos: qual plano grande ainda não saiu do papel?
-- medos: qual o maior medo que não admite em voz alta?
-- politica: vota em quem sem medo de ser cancelado?
-- academia: malha, finge que vai ou desistiu?
-- futebol: torce pra qual time e como reage quando perde?
-Conecte com algo que o usuário DISSE no histórico para soar natural, não como formulário.
+    ? `## TIPO AGORA: TÓPICO PESSOAL OBRIGATÓRIO
+ATENÇÃO: esta pergunta NÃO pode mencionar Steam, jogos, redes sociais ou dados das plataformas.
+É uma pergunta sobre a VIDA REAL do usuário.
+
+Categorias disponíveis: [${availablePersonal.length ? availablePersonal.join(', ') : available.join(', ')}]
+
+Escolha UMA e pergunte diretamente sobre a vida dele:
+- relacionamento → "tá solteiro, enrolado ou largado?" / "a pessoa do lado aguenta o caos ou é mais caos que você?"
+- familia → "é tipo grudado na família ou sumiu e só aparece no natal?"
+- signo → "qual é o signo? acredita nisso ou acha uma baboseira?"
+- infancia → "qual era o sonho de criança que virou pó?"
+- sonhos → "qual o plano grande que nunca saiu do papel?"
+- medos → "qual o maior medo que não admite nem bêbado?"
+- politica → "vota em quem? pode falar, eu não conto pra ninguém"
+- academia → "malha ou é do time que renova a mensalidade e não vai?"
+- futebol → "torce pra qual time? e chora quando perde ou faz pose de isentão?"
+
+PROIBIDO: mencionar Lethal Company, Steam, Instagram, YouTube, GitHub, jogos, redes sociais.
+A pergunta deve parecer de um amigo bisbilhoteiro perguntando sobre a vida, não um chatbot.
 data_hook = null. data_source = "TOPICO".`
     : `## TIPO AGORA: DADOS DAS REDES
 Fontes usadas até agora: [${usedNetworkSources.join(', ') || 'nenhuma'}]
@@ -192,10 +199,11 @@ Gere APENAS este JSON (sem texto fora):
 }
 
 REGRAS ABSOLUTAS:
-- comment: reaja ao que ele ACABOU de dizer (última linha do histórico)
+- comment: reaja ao que ele ACABOU de dizer (última linha do histórico). NÃO mencione dados de outras redes no comment — ele deve reagir à resposta do usuário, não reciclar Steam/YouTube/etc.
 - question: use o data_hook e o angle — se não tiver dado real para sustentar, mude o angle
 - options: 2-3 itens específicos ou null. Última opção SEMPRE "Outro 🖊️" quando presente
-- NUNCA repita pergunta do histórico`
+- NUNCA repita pergunta do histórico
+- NUNCA mencione Lethal Company, Steam, ou qualquer dado de rede no comment se a categoria atual não for games/hobbies`
 }
 
 // ============================================================
