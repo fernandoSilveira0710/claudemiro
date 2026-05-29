@@ -13,19 +13,20 @@ export const AVAILABLE_TOPICS = [
   { id: 'academia', label: 'Academia/Fitness', emoji: '💪' }, { id: 'internet', label: 'Tretas da Internet', emoji: '🍿' },
 ]
 
-const MAX_INTERACTIONS = 8
+const MAX_INTERACTIONS = 10
 const ALL_CATEGORIES = ['games', 'musica', 'carreira', 'hobbies', 'futebol', 'animes', 'filmes', 'familia', 'relacionamento', 'signo', 'religiao', 'politica', 'internet', 'academia', 'personalidade', 'infancia', 'sonhos', 'medos']
+const PERSONAL_CATEGORIES = ['familia', 'relacionamento', 'signo', 'religiao', 'politica', 'personalidade', 'infancia', 'sonhos', 'medos', 'futebol', 'academia']
+const REDES_QUOTA = 5
+const TOPICOS_QUOTA = 5
 
 function digest(data: any): string {
   const L: string[] = []
-
   if (data.steam?.games?.length) {
     const sorted = [...data.steam.games].sort((a: any, b: any) => b.playtime_forever - a.playtime_forever)
     const totalH = Math.round(data.steam.games.reduce((s: number, g: any) => s + g.playtime_forever, 0) / 60)
     const top5 = sorted.slice(0, 5).map((g: any) => `${g.name}(${Math.round(g.playtime_forever / 60)}h)`)
     L.push(`[STEAM] ${data.steam.games.length} jogos | ${totalH}h total | Top: ${top5.join(', ')}`)
   }
-
   if (data.spotify?.topArtists?.length) {
     const artists = data.spotify.topArtists.slice(0, 6).map((a: any) => a.name)
     const genres = [...new Set(data.spotify.topArtists.flatMap((a: any) => a.genres || []).slice(0, 6))] as string[]
@@ -35,127 +36,121 @@ function digest(data: any): string {
       L.push(`[SPOTIFY TRACKS] ${tracks.join(' | ')}`)
     }
   }
-
   if (data.instagram) {
     const u = data.instagram.user || data.instagram
     const seg = u.edge_followed_by?.count || u.follower_count || 0
     const bio = (u.biography || data.instagram.biography || '').slice(0, 120)
     L.push(`[INSTAGRAM] @${data.instagram.platform_username || '?'} | ${seg} seguidores | Bio: "${bio}"`)
   }
-
   if (data.tiktok) {
     const bio = (data.tiktok.signature || '').slice(0, 120)
     const seg = data.tiktok.follower_count || 0
     const videos = data.tiktok.video_count || 0
     L.push(`[TIKTOK] @${data.tiktok.platform_username || '?'} | ${seg} seguidores | ${videos} vídeos | Bio: "${bio}"`)
   }
-
   if (data.youtube?.subscriptions?.length) {
     const canais = data.youtube.subscriptions.slice(0, 10).map((s: any) => s.snippet?.title || '').filter(Boolean)
     L.push(`[YOUTUBE] Segue: ${canais.join(', ')}`)
   }
-
   if (data.github) {
-    const langs = data.github.top_languages
-      ? Object.keys(data.github.top_languages).slice(0, 4).join(', ')
-      : 'não informado'
+    const langs = data.github.top_languages ? Object.keys(data.github.top_languages).slice(0, 4).join(', ') : 'não informado'
     L.push(`[GITHUB] @${data.github.platform_username || '?'} | ${data.github.public_repos || 0} repos | Linguagens: ${langs}`)
   }
-
-  if (data.discord) {
-    L.push(`[DISCORD] ${data.discord.guild_count || 0} servidores`)
-  }
-
-  if (data.twitter) {
-    L.push(`[TWITTER/X] @${data.twitter.platform_username || '?'} | ${data.twitter.followers_count || 0} seguidores | ${data.twitter.statuses_count || 0} tweets`)
-  }
-
+  if (data.discord) L.push(`[DISCORD] ${data.discord.guild_count || 0} servidores`)
+  if (data.twitter) L.push(`[TWITTER/X] @${data.twitter.platform_username || '?'} | ${data.twitter.followers_count || 0} seguidores | ${data.twitter.statuses_count || 0} tweets`)
   return L.join('\n') || 'Nenhum dado de redes conectado.'
 }
 
 // ============================================================
-// PASSO 1: RACIOCÍNIO — analisar estado e decidir categoria
+// PASSO 1: RACIOCÍNIO
 // ============================================================
 function buildReasoningPrompt(
-  data: string,
-  blocked: string[],
-  asked: string[],
-  history: string,
-  mode: string,
-  askedQuestions: string[] = [],
-  usedDataSources: string[] = []
+  data: string, blocked: string[], asked: string[], history: string,
+  mode: string, askedQuestions: string[] = [], usedDataSources: string[] = []
 ): string {
-  const available = ALL_CATEGORIES.filter(c => !asked.includes(c) && !blocked.includes(c))
-
-  // Detectar quais fontes de dados existem nos dados do usuário
+  const available = ALL_CATEGORIES.filter(cat => !asked.includes(cat) && !blocked.includes(cat))
   const allSources = ['STEAM', 'SPOTIFY', 'INSTAGRAM', 'TIKTOK', 'YOUTUBE', 'GITHUB', 'DISCORD', 'TWITTER/X']
   const presentSources = allSources.filter(s => data.includes(`[${s}]`))
-  const availableSources = presentSources.filter(s => !usedDataSources.includes(s))
-  const mustUseSources = availableSources.length > 0 ? availableSources : presentSources
+  const usedNetworkSources = usedDataSources.filter(s => s !== 'TOPICO')
+  const availableSources = presentSources.filter(s => !usedNetworkSources.includes(s))
+  const redesUsadas = usedNetworkSources.length
+  const topicosUsados = usedDataSources.filter(s => s === 'TOPICO').length
+  const deveUsarTopico = (redesUsadas >= REDES_QUOTA) || (topicosUsados < TOPICOS_QUOTA && redesUsadas >= (topicosUsados + 1) * 2)
+  const availablePersonal = available.filter(cat => PERSONAL_CATEGORIES.includes(cat))
 
   const tonePersonality: Record<string, string> = {
     engracado: 'Você é debochado, usa gírias, zoeira pesada, humor ácido. Faz referências à cultura internet BR.',
-    casual:    'Você é leve, direto, amigável. Gírias suaves. Sem forçar.',
+    casual: 'Você é leve, direto, amigável. Gírias suaves. Sem forçar.',
     profissional: 'Você é analítico, sério. Linguagem formal mas acessível. Zero zoeira.',
   }
 
   const recentHistory = history.split('\n').slice(-8).join('\n') || 'Início da conversa'
-  const questionsAsked = askedQuestions.length
-    ? askedQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n')
-    : 'Nenhuma ainda.'
+  const questionsAsked = askedQuestions.length ? askedQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n') : 'Nenhuma ainda.'
+
+  const tipoInstrucao = deveUsarTopico
+    ? `## TIPO AGORA: TÓPICO PESSOAL (não usa dados das redes)
+Categorias pessoais disponíveis: [${availablePersonal.length ? availablePersonal.join(', ') : available.join(', ')}]
+Explore a vida real, opinião e personalidade do usuário. Exemplos por categoria:
+- familia: é grudado na família ou independente raiz?
+- relacionamento: tá solteiro, enrolado ou complicado?
+- signo: qual o signo? acredita ou é cético?
+- infancia: qual memória de infância te define?
+- sonhos: qual plano grande ainda não saiu do papel?
+- medos: qual o maior medo que não admite em voz alta?
+- politica: vota em quem sem medo de ser cancelado?
+- academia: malha, finge que vai ou desistiu?
+- futebol: torce pra qual time e como reage quando perde?
+Conecte com algo que o usuário DISSE no histórico para soar natural, não como formulário.
+data_hook = null. data_source = "TOPICO".`
+    : `## TIPO AGORA: DADOS DAS REDES
+Fontes usadas: [${usedNetworkSources.join(', ') || 'nenhuma'}]
+Fontes DISPONÍVEIS: [${availableSources.join(', ') || 'todas usadas — repita qualquer uma'}]
+REGRA: use obrigatoriamente uma fonte de [Fontes DISPONÍVEIS]. Nunca repita a última fonte usada.`
 
   return `Você é o Claudemiro, um interrogador de personalidade digital.
 
-## SEU PERFIL DE TOM (NUNCA MUDE ISSO)
+## TOM FIXO DA SESSÃO
 ${tonePersonality[mode] || tonePersonality.casual}
 
-## DADOS REAIS DO USUÁRIO (use isso pra criar perguntas únicas)
+## DADOS DAS REDES DO USUÁRIO
 ${data}
 
-## TÓPICOS BLOQUEADOS PELO USUÁRIO (NUNCA pergunte sobre estes)
-${blocked.length ? blocked.join(', ') : 'nenhum bloqueado'}
+## TÓPICOS BLOQUEADOS (nunca pergunte sobre estes)
+${blocked.length ? blocked.join(', ') : 'nenhum'}
 
-## CATEGORIAS DISPONÍVEIS PARA EXPLORAR
+## CATEGORIAS DISPONÍVEIS
 ${available.join(', ')}
 
-## ROTAÇÃO DE FONTES DE DADOS — REGRA CRÍTICA
-Fontes já usadas nas últimas perguntas: [${usedDataSources.join(', ') || 'nenhuma ainda'}]
-Fontes DISPONÍVEIS que ainda não foram exploradas: [${availableSources.join(', ') || 'todas já usadas — pode repetir'}]
+${tipoInstrucao}
 
-REGRA: o data_hook da próxima pergunta DEVE vir de uma fonte em [Fontes DISPONÍVEIS].
-Se [Fontes DISPONÍVEIS] estiver vazio, use qualquer fonte disponível nos dados.
-Exemplos:
-- Se STEAM já foi usado 2x e YOUTUBE está disponível → use dado do YOUTUBE
-- Se GITHUB está disponível → pergunte sobre código/repos
-- Se INSTAGRAM está disponível → pergunte sobre a bio/seguidores
-- NUNCA use STEAM ou qualquer outra fonte 2x seguidas, mesmo que a categoria seja diferente
-
-## PERGUNTAS JÁ FEITAS — PROIBIDO REPETIR TEMA OU INTENÇÃO
-Regra: uma pergunta nova é repetição se busca a mesma informação que uma já feita,
-mesmo usando palavras completamente diferentes.
+## PERGUNTAS JÁ FEITAS (proibido repetir tema ou intenção)
 ${questionsAsked}
 
 ## ÚLTIMAS MENSAGENS
 ${recentHistory}
 
-## SUA TAREFA
-1. Olhe [Fontes DISPONÍVEIS] — escolha UMA dessas fontes para o data_hook
-2. Escolha uma categoria disponível que combine com essa fonte
-3. Defina o ângulo específico a partir do dado daquela fonte
-4. Verifique: o angle é diferente de tudo já perguntado? Se não, troque o ângulo.
+## TAREFA
+${deveUsarTopico
+  ? `1. Escolha UMA categoria de [Categorias pessoais disponíveis]
+2. Formule um ângulo direto e pessoal sobre aquela categoria
+3. Conecte com algo do histórico se possível`
+  : `1. Escolha UMA fonte de [Fontes DISPONÍVEIS]
+2. Escolha categoria que combine
+3. Ângulo específico baseado no dado real
+4. Diferente de tudo já perguntado?`}
 
 Responda APENAS JSON:
-{"category":"...","data_hook":"dado literal da fonte escolhida","data_source":"nome da fonte (ex: GITHUB, YOUTUBE, INSTAGRAM)","angle":"ângulo único","tone_note":"como o tom se aplica aqui"}`
+{"category":"...","data_hook":"dado literal ou null","data_source":"TOPICO ou nome da rede","angle":"ângulo único","tone_note":"como o tom se aplica"}`
 }
 
 // ============================================================
-// PASSO 2: DIÁLOGO — gerar a resposta final
+// PASSO 2: DIÁLOGO
 // ============================================================
 function buildDialogPrompt(data: string, history: string, mode: string, reasoning: any): string {
   const toneVoice: Record<string, string> = {
-    engracado:     'debochado, irônico, zoeira pesada, gírias BR (nerdola, otaku fedido, marombeiro, trampa, trampar), emojis expressivos, pode xingar levemente',
-    casual:        'leve, direto, gírias suaves, sem forçar humor, conversa natural',
-    profissional:  'sério e analítico, linguagem formal mas acessível, sem gírias, sem emojis excessivos',
+    engracado: 'debochado, irônico, zoeira pesada, gírias BR (nerdola, otaku fedido, marombeiro, trampa, trampar), emojis expressivos, pode xingar levemente',
+    casual: 'leve, direto, gírias suaves, sem forçar humor, conversa natural',
+    profissional: 'sério e analítico, linguagem formal mas acessível, sem gírias, sem emojis excessivos',
   }
 
   return `Você é o Claudemiro. Tom FIXO desta sessão: ${toneVoice[mode] || toneVoice.casual}
@@ -181,8 +176,8 @@ Antes de escrever a question:
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "reação ao que o usuário acabou de dizer — 1 frase curta, no tom certo",
-  "question": "FORMATO OBRIGATÓRIO: comece com o dado real do data_hook ou com uma provocação baseada nele. NUNCA comece com 'Qual é o seu', 'O que você acha', 'Como você se sente'. Soe como alguém que já sabe sobre você, não como formulário.",
+  "comment": "opinião/reação sobre o que o usuário disse — 1 frase com caráter, no tom certo. Não seja neutro. Modo engracado: zoeira ou análise irônica. Casual: comentário genuíno. Profissional: observação analítica.",
+  "question": "Se tem data_hook: comece com o dado real ou provocação baseada nele. Se é tópico pessoal (data_hook null): pergunta direta e pessoal conectada com algo do histórico. NUNCA comece com Qual e o seu, O que voce acha, Como voce se sente. Soe como alguém curioso com personalidade, não formulário.",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
@@ -204,7 +199,6 @@ export async function POST(req: Request) {
   const { message, mode, blockedTopics, sessionId, undo, requestVeredict } = await req.json()
   const blocked = blockedTopics || []
 
-  // INICIAR
   if (!message || message === '__START__') {
     let raw: ScannedUserData = {}
     try { raw = await scanUserData(user.id) } catch {}
@@ -212,11 +206,9 @@ export async function POST(req: Request) {
     const reasoningPrompt = buildReasoningPrompt(dataStr, blocked, [], '', mode, [], [])
     const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
-
     const dialogPrompt = buildDialogPrompt(dataStr, '', mode, reasoning)
     const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
     const parsed = safeParse(dialogJson)
-
     const { data: session } = await supabase.from('chat_sessions').insert({
       user_id: user.id, mode, phase: 'chat', status: 'active',
       messages: [{ role: 'claudemiro', content: dialogJson, parsed, reasoning }],
@@ -228,11 +220,9 @@ export async function POST(req: Request) {
       },
       scanned_data: raw,
     }).select().single()
-
     return NextResponse.json({ type: 'start', parsed, sessionId: session?.id, interactionCount: 1 })
   }
 
-  // DESFAZER
   if (undo && sessionId) {
     const { data: s } = await supabase.from('chat_sessions').select('*').eq('id', sessionId).single()
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -240,28 +230,19 @@ export async function POST(req: Request) {
     const asked = (s.phase_data?.askedCategories || []).slice(0, -1)
     const dataStr = digest(s.scanned_data || {})
     const hist = formatHistoryString(msgs)
-
     const prevQuestions = (s.phase_data?.askedQuestions || []).slice(0, -1)
     const prevSources = (s.phase_data?.usedDataSources || []).slice(0, -1)
     const reasoningJson = await chatCompletion([{ role: 'user', content: buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, prevQuestions, prevSources) }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
     const dialogJson = await chatCompletion([{ role: 'user', content: buildDialogPrompt(dataStr, hist, s.mode, reasoning) }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
     const parsed = safeParse(dialogJson)
-
     const restored = [...msgs, { role: 'claudemiro', content: dialogJson, parsed, reasoning }]
     await supabase.from('chat_sessions').update({
-      messages: restored,
-      phase_data: {
-        ...s.phase_data,
-        askedCategories: [...asked, reasoning.category].filter(Boolean),
-        askedQuestions: [...prevQuestions, parsed.question].filter(Boolean),
-        usedDataSources: [...prevSources, reasoning.data_source].filter(Boolean),
-      }
+      messages: restored, phase_data: { ...s.phase_data, askedCategories: [...asked, reasoning.category].filter(Boolean), askedQuestions: [...prevQuestions, parsed.question].filter(Boolean), usedDataSources: [...prevSources, reasoning.data_source].filter(Boolean) }
     }).eq('id', sessionId)
     return NextResponse.json({ type: 'undo', messages: restored, interactionCount: asked.length })
   }
 
-  // VEREDITO
   if (requestVeredict && sessionId) {
     const { data: s } = await supabase.from('chat_sessions').select('*').eq('id', sessionId).single()
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -279,7 +260,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id }, veredictId: saved?.id, messages: msgs })
   }
 
-  // CONTINUAR
   const { data: s } = await supabase.from('chat_sessions').select('*')
     .eq(sessionId ? 'id' : 'user_id', sessionId || user.id).eq('status', 'active')
     .order('created_at', { ascending: false }).limit(1).single()
@@ -292,17 +272,9 @@ export async function POST(req: Request) {
   const dataStr = digest(s.scanned_data || {})
   const hist = formatHistoryString(msgs)
 
-  // Se já ofereceu veredito antes, não voltar ao loop
-  if (asked.includes('veredito')) {
-    const parsed: any = { comment: 'Beleza, vamos continuar então.', question: 'O que mais quer saber?', options: ['Gerar veredito', 'Continuar'] }
-    msgs.push({ role: 'claudemiro', content: '', parsed, reasoning: {} })
-    await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', s.id)
-    return NextResponse.json({ type: 'reply', parsed, interactionCount: asked.length, suggestVeredict: true, sessionId: s.id })
-  }
-
   let reasoningPrompt: string
   if (asked.length >= MAX_INTERACTIONS) {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources) + '\n[Já são ' + (asked.length + 1) + ' interações. category DEVE ser "veredito".]'
+    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources) + '\n[' + asked.length + ' perguntas feitas. Chega — category DEVE ser "veredito" agora.]'
   } else {
     reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources)
   }
@@ -310,31 +282,24 @@ export async function POST(req: Request) {
   const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
   const reasoning = safeParse(reasoningJson)
 
-  let dialogPrompt: string
   if (reasoning.category === 'veredito') {
     const parsed: any = { comment: 'Já tenho uma opinião formada sobre você.', question: 'Quer ver?', options: ['Gerar veredito', 'Continuar'] }
     msgs.push({ role: 'claudemiro', content: '', parsed, reasoning })
     const newAsked = [...asked, 'veredito']
     const newAskedQuestions = [...askedQuestions, 'Quer ver?']
-    await supabase.from('chat_sessions').update({
-      messages: msgs,
-      phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions }
-    }).eq('id', s.id)
+    await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions } }).eq('id', s.id)
     return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: true, sessionId: s.id })
   }
 
   const dialogTemp = mode === 'engracado' ? 0.65 : mode === 'profissional' ? 0.5 : 0.7
-  dialogPrompt = buildDialogPrompt(dataStr, hist, s.mode, reasoning)
+  const dialogPrompt = buildDialogPrompt(dataStr, hist, s.mode, reasoning)
   const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: dialogTemp, maxTokens: 400, json: true })
   const parsed = safeParse(dialogJson)
   msgs.push({ role: 'claudemiro', content: dialogJson, parsed, reasoning })
   const newAsked = [...asked, reasoning.category].filter(Boolean)
   const newAskedQuestions = [...askedQuestions, parsed.question].filter(Boolean)
   const newUsedSources = [...usedDataSources, reasoning.data_source].filter(Boolean)
-  await supabase.from('chat_sessions').update({
-    messages: msgs,
-    phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions, usedDataSources: newUsedSources }
-  }).eq('id', s.id)
+  await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions, usedDataSources: newUsedSources } }).eq('id', s.id)
 
   return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: newAsked.length >= MAX_INTERACTIONS, sessionId: s.id })
 }
