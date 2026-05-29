@@ -34,6 +34,8 @@ const MODELS: Record<string, ModelConfig> = {
   },
 }
 
+export { MODELS }
+
 // Plano → modelo padrão
 const PLAN_MODEL: Record<string, string> = {
   FREE: 'gemma',
