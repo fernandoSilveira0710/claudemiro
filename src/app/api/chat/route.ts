@@ -82,9 +82,16 @@ function buildReasoningPrompt(
   asked: string[],
   history: string,
   mode: string,
-  askedQuestions: string[] = []
+  askedQuestions: string[] = [],
+  usedDataSources: string[] = []
 ): string {
   const available = ALL_CATEGORIES.filter(c => !asked.includes(c) && !blocked.includes(c))
+
+  // Detectar quais fontes de dados existem nos dados do usuário
+  const allSources = ['STEAM', 'SPOTIFY', 'INSTAGRAM', 'TIKTOK', 'YOUTUBE', 'GITHUB', 'DISCORD', 'TWITTER/X']
+  const presentSources = allSources.filter(s => data.includes(`[${s}]`))
+  const availableSources = presentSources.filter(s => !usedDataSources.includes(s))
+  const mustUseSources = availableSources.length > 0 ? availableSources : presentSources
 
   const tonePersonality: Record<string, string> = {
     engracado: 'Você é debochado, usa gírias, zoeira pesada, humor ácido. Faz referências à cultura internet BR.',
@@ -111,24 +118,34 @@ ${blocked.length ? blocked.join(', ') : 'nenhum bloqueado'}
 ## CATEGORIAS DISPONÍVEIS PARA EXPLORAR
 ${available.join(', ')}
 
+## ROTAÇÃO DE FONTES DE DADOS — REGRA CRÍTICA
+Fontes já usadas nas últimas perguntas: [${usedDataSources.join(', ') || 'nenhuma ainda'}]
+Fontes DISPONÍVEIS que ainda não foram exploradas: [${availableSources.join(', ') || 'todas já usadas — pode repetir'}]
+
+REGRA: o data_hook da próxima pergunta DEVE vir de uma fonte em [Fontes DISPONÍVEIS].
+Se [Fontes DISPONÍVEIS] estiver vazio, use qualquer fonte disponível nos dados.
+Exemplos:
+- Se STEAM já foi usado 2x e YOUTUBE está disponível → use dado do YOUTUBE
+- Se GITHUB está disponível → pergunte sobre código/repos
+- Se INSTAGRAM está disponível → pergunte sobre a bio/seguidores
+- NUNCA use STEAM ou qualquer outra fonte 2x seguidas, mesmo que a categoria seja diferente
+
 ## PERGUNTAS JÁ FEITAS — PROIBIDO REPETIR TEMA OU INTENÇÃO
 Regra: uma pergunta nova é repetição se busca a mesma informação que uma já feita,
-mesmo usando palavras completamente diferentes. Exemplo: "você joga solo?" e
-"prefere campanha solo ou multiplayer?" são a mesma pergunta.
+mesmo usando palavras completamente diferentes.
 ${questionsAsked}
 
 ## ÚLTIMAS MENSAGENS
 ${recentHistory}
 
 ## SUA TAREFA
-Com base nos DADOS REAIS e no TOM acima:
-1. Escolha UMA categoria de [CATEGORIAS DISPONÍVEIS]
-2. Escolha um ângulo ESPECÍFICO baseado num dado real dos DADOS DO USUÁRIO
-3. Defina como o tom deve soar nessa resposta específica
-4. VERIFIQUE: seu angle busca a mesma informação que alguma pergunta já feita? Se sim, volte ao passo 2.
+1. Olhe [Fontes DISPONÍVEIS] — escolha UMA dessas fontes para o data_hook
+2. Escolha uma categoria disponível que combine com essa fonte
+3. Defina o ângulo específico a partir do dado daquela fonte
+4. Verifique: o angle é diferente de tudo já perguntado? Se não, troque o ângulo.
 
 Responda APENAS JSON:
-{"category":"...","data_hook":"dado literal dos dados do usuário que vai usar","angle":"ângulo único — diferente de tudo já perguntado","tone_note":"como o tom se aplica aqui"}`
+{"category":"...","data_hook":"dado literal da fonte escolhida","data_source":"nome da fonte (ex: GITHUB, YOUTUBE, INSTAGRAM)","angle":"ângulo único","tone_note":"como o tom se aplica aqui"}`
 }
 
 // ============================================================
@@ -192,7 +209,7 @@ export async function POST(req: Request) {
     let raw: ScannedUserData = {}
     try { raw = await scanUserData(user.id) } catch {}
     const dataStr = digest(raw)
-    const reasoningPrompt = buildReasoningPrompt(dataStr, blocked, [], '', mode, [])
+    const reasoningPrompt = buildReasoningPrompt(dataStr, blocked, [], '', mode, [], [])
     const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
 
@@ -207,6 +224,7 @@ export async function POST(req: Request) {
         blockedTopics: blocked,
         askedCategories: [reasoning.category].filter(Boolean),
         askedQuestions: [parsed.question].filter(Boolean),
+        usedDataSources: [reasoning.data_source].filter(Boolean),
       },
       scanned_data: raw,
     }).select().single()
@@ -224,7 +242,8 @@ export async function POST(req: Request) {
     const hist = formatHistoryString(msgs)
 
     const prevQuestions = (s.phase_data?.askedQuestions || []).slice(0, -1)
-    const reasoningJson = await chatCompletion([{ role: 'user', content: buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, prevQuestions) }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
+    const prevSources = (s.phase_data?.usedDataSources || []).slice(0, -1)
+    const reasoningJson = await chatCompletion([{ role: 'user', content: buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, prevQuestions, prevSources) }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
     const dialogJson = await chatCompletion([{ role: 'user', content: buildDialogPrompt(dataStr, hist, s.mode, reasoning) }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
     const parsed = safeParse(dialogJson)
@@ -236,6 +255,7 @@ export async function POST(req: Request) {
         ...s.phase_data,
         askedCategories: [...asked, reasoning.category].filter(Boolean),
         askedQuestions: [...prevQuestions, parsed.question].filter(Boolean),
+        usedDataSources: [...prevSources, reasoning.data_source].filter(Boolean),
       }
     }).eq('id', sessionId)
     return NextResponse.json({ type: 'undo', messages: restored, interactionCount: asked.length })
@@ -268,6 +288,7 @@ export async function POST(req: Request) {
   const msgs = [...(s.messages || []), { role: 'user', content: message }]
   const asked = s.phase_data?.askedCategories || []
   const askedQuestions = s.phase_data?.askedQuestions || []
+  const usedDataSources = s.phase_data?.usedDataSources || []
   const dataStr = digest(s.scanned_data || {})
   const hist = formatHistoryString(msgs)
 
@@ -281,9 +302,9 @@ export async function POST(req: Request) {
 
   let reasoningPrompt: string
   if (asked.length >= MAX_INTERACTIONS) {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions) + '\n[Já são ' + (asked.length + 1) + ' interações. category DEVE ser "veredito".]'
+    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources) + '\n[Já são ' + (asked.length + 1) + ' interações. category DEVE ser "veredito".]'
   } else {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions)
+    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources)
   }
 
   const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
@@ -293,7 +314,6 @@ export async function POST(req: Request) {
   if (reasoning.category === 'veredito') {
     const parsed: any = { comment: 'Já tenho uma opinião formada sobre você.', question: 'Quer ver?', options: ['Gerar veredito', 'Continuar'] }
     msgs.push({ role: 'claudemiro', content: '', parsed, reasoning })
-    // ✅ salvar 'veredito' para não repetir o loop
     const newAsked = [...asked, 'veredito']
     const newAskedQuestions = [...askedQuestions, 'Quer ver?']
     await supabase.from('chat_sessions').update({
@@ -303,7 +323,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: true, sessionId: s.id })
   }
 
-  // Temperature dinâmica: reduzir em modo engraçado pra evitar alucinação
   const dialogTemp = mode === 'engracado' ? 0.65 : mode === 'profissional' ? 0.5 : 0.7
   dialogPrompt = buildDialogPrompt(dataStr, hist, s.mode, reasoning)
   const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: dialogTemp, maxTokens: 400, json: true })
@@ -311,9 +330,10 @@ export async function POST(req: Request) {
   msgs.push({ role: 'claudemiro', content: dialogJson, parsed, reasoning })
   const newAsked = [...asked, reasoning.category].filter(Boolean)
   const newAskedQuestions = [...askedQuestions, parsed.question].filter(Boolean)
+  const newUsedSources = [...usedDataSources, reasoning.data_source].filter(Boolean)
   await supabase.from('chat_sessions').update({
     messages: msgs,
-    phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions }
+    phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions, usedDataSources: newUsedSources }
   }).eq('id', s.id)
 
   return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: newAsked.length >= MAX_INTERACTIONS, sessionId: s.id })
