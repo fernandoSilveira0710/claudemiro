@@ -18,69 +18,153 @@ const ALL_CATEGORIES = ['games', 'musica', 'carreira', 'hobbies', 'futebol', 'an
 
 function digest(data: any): string {
   const L: string[] = []
+
   if (data.steam?.games?.length) {
-    const h = Math.round(data.steam.games.reduce((s: number, g: any) => s + g.playtime_forever, 0) / 60)
-    L.push(`Steam: ${data.steam.games.length} jogos, ${h}h. Top: ${data.steam.games.sort((a: any, b: any) => b.playtime_forever - a.playtime_forever).slice(0, 5).map((g: any) => `${g.name}(${Math.round(g.playtime_forever / 60)}h)`).join(', ')}`)
+    const sorted = [...data.steam.games].sort((a: any, b: any) => b.playtime_forever - a.playtime_forever)
+    const totalH = Math.round(data.steam.games.reduce((s: number, g: any) => s + g.playtime_forever, 0) / 60)
+    const top5 = sorted.slice(0, 5).map((g: any) => `${g.name}(${Math.round(g.playtime_forever / 60)}h)`)
+    L.push(`[STEAM] ${data.steam.games.length} jogos | ${totalH}h total | Top: ${top5.join(', ')}`)
   }
-  if (data.spotify?.topArtists?.length) L.push(`Spotify: ${data.spotify.topArtists.slice(0, 5).map((a: any) => a.name).join(', ')}`)
-  if (data.instagram) { const u = data.instagram.user || data.instagram; L.push(`Instagram: @${data.instagram.platform_username || '?'} (${u.edge_followed_by?.count || 0} seg). Bio: "${(u.biography || data.instagram.biography || '').slice(0, 100)}"`) }
-  if (data.tiktok) L.push(`TikTok: @${data.tiktok.platform_username || '?'}. Bio: "${(data.tiktok.signature || '').slice(0, 100)}"`)
-  if (data.youtube?.subscriptions?.length) L.push(`YouTube: segue ${data.youtube.subscriptions.slice(0, 8).map((s: any) => s.snippet?.title || '').filter(Boolean).join(', ')}`)
-  if (data.github) L.push(`GitHub: @${data.github.platform_username || '?'}, ${data.github.public_repos || 0} repos`)
-  return L.join('\n') || 'Nenhum dado.'
+
+  if (data.spotify?.topArtists?.length) {
+    const artists = data.spotify.topArtists.slice(0, 6).map((a: any) => a.name)
+    const genres = [...new Set(data.spotify.topArtists.flatMap((a: any) => a.genres || []).slice(0, 6))] as string[]
+    L.push(`[SPOTIFY] Artistas: ${artists.join(', ')} | Gêneros: ${genres.join(', ') || 'não detectado'}`)
+    if (data.spotify.topTracks?.length) {
+      const tracks = data.spotify.topTracks.slice(0, 3).map((t: any) => `${t.name} - ${t.artist}`)
+      L.push(`[SPOTIFY TRACKS] ${tracks.join(' | ')}`)
+    }
+  }
+
+  if (data.instagram) {
+    const u = data.instagram.user || data.instagram
+    const seg = u.edge_followed_by?.count || u.follower_count || 0
+    const bio = (u.biography || data.instagram.biography || '').slice(0, 120)
+    L.push(`[INSTAGRAM] @${data.instagram.platform_username || '?'} | ${seg} seguidores | Bio: "${bio}"`)
+  }
+
+  if (data.tiktok) {
+    const bio = (data.tiktok.signature || '').slice(0, 120)
+    const seg = data.tiktok.follower_count || 0
+    const videos = data.tiktok.video_count || 0
+    L.push(`[TIKTOK] @${data.tiktok.platform_username || '?'} | ${seg} seguidores | ${videos} vídeos | Bio: "${bio}"`)
+  }
+
+  if (data.youtube?.subscriptions?.length) {
+    const canais = data.youtube.subscriptions.slice(0, 10).map((s: any) => s.snippet?.title || '').filter(Boolean)
+    L.push(`[YOUTUBE] Segue: ${canais.join(', ')}`)
+  }
+
+  if (data.github) {
+    const langs = data.github.top_languages
+      ? Object.keys(data.github.top_languages).slice(0, 4).join(', ')
+      : 'não informado'
+    L.push(`[GITHUB] @${data.github.platform_username || '?'} | ${data.github.public_repos || 0} repos | Linguagens: ${langs}`)
+  }
+
+  if (data.discord) {
+    L.push(`[DISCORD] ${data.discord.guild_count || 0} servidores`)
+  }
+
+  if (data.twitter) {
+    L.push(`[TWITTER/X] @${data.twitter.platform_username || '?'} | ${data.twitter.followers_count || 0} seguidores | ${data.twitter.statuses_count || 0} tweets`)
+  }
+
+  return L.join('\n') || 'Nenhum dado de redes conectado.'
 }
 
 // ============================================================
 // PASSO 1: RACIOCÍNIO — analisar estado e decidir categoria
 // ============================================================
-function buildReasoningPrompt(data: string, blocked: string[], asked: string[], history: string, mode: string): string {
+function buildReasoningPrompt(
+  data: string,
+  blocked: string[],
+  asked: string[],
+  history: string,
+  mode: string,
+  askedQuestions: string[] = []
+): string {
   const available = ALL_CATEGORIES.filter(c => !asked.includes(c) && !blocked.includes(c))
-  const tones: Record<string, string> = { engracado: 'debochado, zoeira, gírias', casual: 'leve, direto', profissional: 'sério, analítico' }
-  return `=== ANÁLISE DE ESTADO ===
-Categorias JÁ perguntadas: [${asked.join(', ') || 'nenhuma'}]
-Categorias DISPONÍVEIS: [${available.join(', ')}]
-Tom: ${tones[mode] || 'casual'}
 
-=== DADOS ===
+  const tonePersonality: Record<string, string> = {
+    engracado: 'Você é debochado, usa gírias, zoeira pesada, humor ácido. Faz referências à cultura internet BR.',
+    casual:    'Você é leve, direto, amigável. Gírias suaves. Sem forçar.',
+    profissional: 'Você é analítico, sério. Linguagem formal mas acessível. Zero zoeira.',
+  }
+
+  const recentHistory = history.split('\n').slice(-8).join('\n') || 'Início da conversa'
+  const questionsAsked = askedQuestions.length
+    ? askedQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n')
+    : 'Nenhuma ainda.'
+
+  return `Você é o Claudemiro, um interrogador de personalidade digital.
+
+## SEU PERFIL DE TOM (NUNCA MUDE ISSO)
+${tonePersonality[mode] || tonePersonality.casual}
+
+## DADOS REAIS DO USUÁRIO (use isso pra criar perguntas únicas)
 ${data}
 
-=== ÚLTIMAS MENSAGENS ===
-${history.split('\n').slice(-6).join('\n') || 'Início'}
+## TÓPICOS BLOQUEADOS PELO USUÁRIO (NUNCA pergunte sobre estes)
+${blocked.length ? blocked.join(', ') : 'nenhum bloqueado'}
 
-=== SUA TAREFA ===
-Analise os dados e o histórico. Escolha UMA categoria disponível para a próxima pergunta. Depois pense em COMO conectar o que o usuário acabou de dizer com essa categoria.
+## CATEGORIAS DISPONÍVEIS PARA EXPLORAR
+${available.join(', ')}
 
-Responda com JSON: {"category":"categoria escolhida","connection":"como conectar a última resposta do usuário com essa categoria (1 frase)","tone_note":"ajuste de tom baseado no que o usuário disse (ex: 'usuário foi seco, responder mais direto' ou 'usuário engajou, manter ritmo')"}
+## PERGUNTAS QUE VOCÊ JÁ FEZ (não repita nem tema parecido)
+${questionsAsked}
 
-Regra: escolha uma categoria DISPONÍVEL. NUNCA repita categoria já perguntada.`
+## ÚLTIMAS MENSAGENS
+${recentHistory}
+
+## SUA TAREFA
+Com base nos DADOS REAIS e no TOM acima:
+1. Escolha UMA categoria de [CATEGORIAS DISPONÍVEIS]
+2. Pense em um ângulo ESPECÍFICO dos dados reais para essa categoria (ex: se Steam tem 955h de Lethal Company, não pergunte "você joga games?", pergunte sobre co-op vs solo)
+3. Defina como o tom deve soar NESSA resposta específica
+
+Responda APENAS JSON:
+{"category":"categoria_escolhida","data_hook":"qual dado específico das redes você vai usar na pergunta (cite o dado literal)","angle":"o ângulo único da pergunta (não genérico)","tone_note":"como o tom se aplica aqui (ex: zoar as 955h, ou ser analítico sobre os repos)"}`
 }
 
 // ============================================================
 // PASSO 2: DIÁLOGO — gerar a resposta final
 // ============================================================
 function buildDialogPrompt(data: string, history: string, mode: string, reasoning: any): string {
-  const tones: Record<string, string> = { engracado: 'debochado, irônico, zoeira, gírias (nerdola, otaku fedido, marombeiro), emojis', casual: 'leve, direto, gírias suaves', profissional: 'sério, analítico, formal' }
-  return `=== CONTEXTO ===
-Tom: ${tones[mode] || 'casual'}
-Dados do usuário: ${data}
-${reasoning.tone_note ? `Ajuste de tom: ${reasoning.tone_note}` : ''}
+  const toneVoice: Record<string, string> = {
+    engracado:     'debochado, irônico, zoeira pesada, gírias BR (nerdola, otaku fedido, marombeiro, trampa, trampar), emojis expressivos, pode xingar levemente',
+    casual:        'leve, direto, gírias suaves, sem forçar humor, conversa natural',
+    profissional:  'sério e analítico, linguagem formal mas acessível, sem gírias, sem emojis excessivos',
+  }
 
-=== RACIOCÍNIO ===
-Categoria escolhida: ${reasoning.category}
-Conexão com última resposta: ${reasoning.connection}
+  return `Você é o Claudemiro. Tom FIXO desta sessão: ${toneVoice[mode] || toneVoice.casual}
 
-=== HISTÓRICO ===
+## DADOS REAIS DO USUÁRIO
+${data}
+
+## RACIOCÍNIO DA ETAPA ANTERIOR
+- Categoria: ${reasoning.category}
+- Dado específico a usar: ${reasoning.data_hook || reasoning.connection || ''}
+- Ângulo da pergunta: ${reasoning.angle || ''}
+- Tom nesta resposta: ${reasoning.tone_note || ''}
+
+## HISTÓRICO
 ${history || 'Início da conversa.'}
 
-=== SUA TAREFA ===
-Com base no raciocínio acima, gere a resposta. JSON:
-{"comment":"reação ao que o usuário disse (1 frase, tom correto)","question":"próxima pergunta (1 frase, sobre a categoria ${reasoning.category})","options":["A","B"] ou null}
+## SUA TAREFA
+Gere APENAS este JSON (sem texto fora):
+{
+  "comment": "reação ao que o usuário acabou de dizer — 1 frase curta, no tom certo, pode usar o dado_hook pra zoar ou analisar",
+  "question": "pergunta ÚNICA sobre ${reasoning.category} — use o ângulo definido, cite o dado real se couber, 1 frase",
+  "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
+}
 
-Regras:
-- comment: reaja ao que o usuário ACABOU de dizer. Conecte com os DADOS.
-- question: UMA pergunta sobre ${reasoning.category}. Seja ESPECÍFICA.
-- options: 2-3 opções curtas OU null. Última opção SEMPRE "Outro 🖊️".
-- NUNCA invente dados. NUNCA use exemplos prontos.`
+REGRAS ABSOLUTAS:
+- comment: reaja ao que ele ACABOU de dizer (última linha do histórico)
+- question: baseada no ângulo E no dado real — NUNCA genérica como "você curte X?"
+- options: 2-3 opções curtas e específicas, ou null se for pergunta aberta. Quando tiver opções, a última SEMPRE é "Outro 🖊️"
+- NUNCA invente dados que não estão nos dados reais acima
+- NUNCA repita uma pergunta que já aparece no histórico`
 }
 
 // ============================================================
@@ -99,18 +183,23 @@ export async function POST(req: Request) {
     let raw: ScannedUserData = {}
     try { raw = await scanUserData(user.id) } catch {}
     const dataStr = digest(raw)
-    const reasoningPrompt = buildReasoningPrompt(dataStr, blocked, [], '', mode)
-    const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 200, json: true })
+    const reasoningPrompt = buildReasoningPrompt(dataStr, blocked, [], '', mode, [])
+    const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
 
     const dialogPrompt = buildDialogPrompt(dataStr, '', mode, reasoning)
-    const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 300, json: true })
+    const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
     const parsed = safeParse(dialogJson)
 
     const { data: session } = await supabase.from('chat_sessions').insert({
       user_id: user.id, mode, phase: 'chat', status: 'active',
       messages: [{ role: 'claudemiro', content: dialogJson, parsed, reasoning }],
-      phase_data: { blockedTopics: blocked, askedCategories: [reasoning.category].filter(Boolean) }, scanned_data: raw,
+      phase_data: {
+        blockedTopics: blocked,
+        askedCategories: [reasoning.category].filter(Boolean),
+        askedQuestions: [parsed.question].filter(Boolean),
+      },
+      scanned_data: raw,
     }).select().single()
 
     return NextResponse.json({ type: 'start', parsed, sessionId: session?.id, interactionCount: 1 })
@@ -125,13 +214,21 @@ export async function POST(req: Request) {
     const dataStr = digest(s.scanned_data || {})
     const hist = formatHistoryString(msgs)
 
-    const reasoningJson = await chatCompletion([{ role: 'user', content: buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode) }], undefined, { temperature: 0.7, maxTokens: 200, json: true })
+    const prevQuestions = (s.phase_data?.askedQuestions || []).slice(0, -1)
+    const reasoningJson = await chatCompletion([{ role: 'user', content: buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, prevQuestions) }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
-    const dialogJson = await chatCompletion([{ role: 'user', content: buildDialogPrompt(dataStr, hist, s.mode, reasoning) }], undefined, { temperature: 0.8, maxTokens: 300, json: true })
+    const dialogJson = await chatCompletion([{ role: 'user', content: buildDialogPrompt(dataStr, hist, s.mode, reasoning) }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
     const parsed = safeParse(dialogJson)
 
     const restored = [...msgs, { role: 'claudemiro', content: dialogJson, parsed, reasoning }]
-    await supabase.from('chat_sessions').update({ messages: restored, phase_data: { ...s.phase_data, askedCategories: [...asked, reasoning.category].filter(Boolean) } }).eq('id', sessionId)
+    await supabase.from('chat_sessions').update({
+      messages: restored,
+      phase_data: {
+        ...s.phase_data,
+        askedCategories: [...asked, reasoning.category].filter(Boolean),
+        askedQuestions: [...prevQuestions, parsed.question].filter(Boolean),
+      }
+    }).eq('id', sessionId)
     return NextResponse.json({ type: 'undo', messages: restored, interactionCount: asked.length })
   }
 
@@ -161,22 +258,22 @@ export async function POST(req: Request) {
 
   const msgs = [...(s.messages || []), { role: 'user', content: message }]
   const asked = s.phase_data?.askedCategories || []
+  const askedQuestions = s.phase_data?.askedQuestions || []
   const dataStr = digest(s.scanned_data || {})
   const hist = formatHistoryString(msgs)
 
   let reasoningPrompt: string
   if (asked.length >= MAX_INTERACTIONS) {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode) + '\n[Já são ' + (asked.length + 1) + ' interações. category DEVE ser "veredito".]'
+    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions) + '\n[Já são ' + (asked.length + 1) + ' interações. category DEVE ser "veredito".]'
   } else {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode)
+    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions)
   }
 
-  const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 200, json: true })
+  const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
   const reasoning = safeParse(reasoningJson)
 
   let dialogPrompt: string
   if (reasoning.category === 'veredito') {
-    // Forçar veredito
     const parsed: any = { comment: 'Já tenho uma opinião formada sobre você.', question: 'Quer ver?', options: ['Gerar veredito', 'Continuar'] }
     msgs.push({ role: 'claudemiro', content: '', parsed, reasoning })
     await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', s.id)
@@ -184,11 +281,15 @@ export async function POST(req: Request) {
   }
 
   dialogPrompt = buildDialogPrompt(dataStr, hist, s.mode, reasoning)
-  const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 300, json: true })
+  const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
   const parsed = safeParse(dialogJson)
   msgs.push({ role: 'claudemiro', content: dialogJson, parsed, reasoning })
   const newAsked = [...asked, reasoning.category].filter(Boolean)
-  await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data, askedCategories: newAsked } }).eq('id', s.id)
+  const newAskedQuestions = [...askedQuestions, parsed.question].filter(Boolean)
+  await supabase.from('chat_sessions').update({
+    messages: msgs,
+    phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions }
+  }).eq('id', s.id)
 
   return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: newAsked.length >= MAX_INTERACTIONS, sessionId: s.id })
 }
