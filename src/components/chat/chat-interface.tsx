@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
+import { ChatProgressBar } from '@/components/chat/progress-bar'
+import { ChatAtmosphere } from '@/components/chat/chat-atmosphere'
 
 type Parsed = { comment: string; question: string; options: string[] | null }
 type Message = { role: 'claudemiro' | 'user'; content: string; parsed?: Parsed; veredict?: boolean }
@@ -170,8 +172,14 @@ export function ChatInterface() {
   const hasOptions = lastParsed?.options && lastParsed.options.length >= 2 && !loading && !isDone
 
   return (
-    <div className="min-h-screen bg-[#0D0221] flex flex-col">
-      <header className="border-b border-white/[0.06] p-3 flex items-center justify-between bg-[#0D0221]/80 backdrop-blur-xl sticky top-0 z-10">
+    <div className="min-h-screen bg-[#0D0221] flex flex-col relative">
+      <ChatAtmosphere
+        interactionCount={interactionCount}
+        maxInteractions={10}
+        isDone={isDone}
+        mode={mode || 'engracado'}
+      />
+      <header className="border-b border-white/[0.06] p-3 flex items-center justify-between bg-[#0D0221]/80 backdrop-blur-xl sticky top-0 z-20">
         <a href="/" className="text-sm font-bold text-[#F3E8FF]/30 hover:text-white" style={{ fontFamily: "'DM Sans', sans-serif" }}>← CLAUDEMIRO</a>
         <div className="flex items-center gap-2">
           {messages.length >= 2 && !loading && !isDone && <button onClick={handleUndo} className="text-[10px] bg-white/[0.04] hover:bg-white/[0.08] text-[#F3E8FF]/40 px-2.5 py-1 rounded-full">↩ Desfazer</button>}
@@ -180,14 +188,12 @@ export function ChatInterface() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto relative">
-        <div className="absolute right-3 top-6 bottom-6 w-1.5 z-10">
-          <div className="relative h-full w-full rounded-full bg-white/[0.04] overflow-hidden">
-            <motion.div className="absolute bottom-0 left-0 right-0 rounded-full bg-gradient-to-t from-purple-500 via-purple-400 to-cyan-400"
-              animate={{ height: `${Math.min((interactionCount / 8) * 100, 100)}%` }} transition={{ duration: 0.6 }} />
-          </div>
-          <p className="text-[8px] text-[#F3E8FF]/15 text-center mt-1 font-mono">{interactionCount}/8</p>
-        </div>
+      <div className="flex-1 overflow-y-auto relative z-10">
+        <ChatProgressBar
+          interactionCount={interactionCount}
+          maxInteractions={10}
+          isDone={isDone}
+        />
 
         <div className="max-w-2xl mx-auto px-4">
           <div className="flex justify-center pt-6 pb-4"><div className="w-24 h-24 claude-bot-glow"><ClaudemiroBot /></div></div>
@@ -216,7 +222,7 @@ export function ChatInterface() {
 
       {/* Input ou Botões */}
       {!isDone && !loading && hasOptions && !showFreeInput ? (
-        <div className="border-t border-white/[0.06] p-4 bg-[#0D0221]/90 backdrop-blur"><div className="max-w-2xl mx-auto">
+        <div className="border-t border-white/[0.06] p-4 bg-[#0D0221]/90 backdrop-blur z-10 relative"><div className="max-w-2xl mx-auto">
           <p className="text-[10px] text-[#F3E8FF]/20 font-mono mb-3 text-center tracking-wider">ESCOLHA UMA OPÇÃO</p>
           <div className="grid grid-cols-2 gap-2.5">
             {lastParsed!.options!.map((opt: string, oi: number) => {
@@ -233,7 +239,7 @@ export function ChatInterface() {
           </div>
         </div></div>
       ) : !isDone ? (
-        <div className="border-t border-white/[0.06] p-4 bg-[#0D0221]/90 backdrop-blur"><div className="max-w-2xl mx-auto flex gap-2">
+        <div className="border-t border-white/[0.06] p-4 bg-[#0D0221]/90 backdrop-blur z-10 relative"><div className="max-w-2xl mx-auto flex gap-2">
           <Input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !loading && sendMessage()} placeholder="Manda a real..." className="bg-white/[0.03] border-white/[0.06] text-white rounded-2xl h-12 text-sm placeholder:text-[#F3E8FF]/20" disabled={loading} />
           <button onClick={() => sendMessage()} disabled={!input.trim() || loading} className="bg-purple-500 hover:bg-purple-600 disabled:bg-white/[0.03] text-white font-bold rounded-2xl h-12 w-12 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.2)]">↑</button>
         </div></div>

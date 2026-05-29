@@ -75,7 +75,12 @@ function buildReasoningPrompt(
   const availableSources = presentSources.filter(s => !usedNetworkSources.includes(s))
   const redesUsadas = usedNetworkSources.length
   const topicosUsados = usedDataSources.filter(s => s === 'TOPICO').length
-  const deveUsarTopico = (redesUsadas >= REDES_QUOTA) || (topicosUsados < TOPICOS_QUOTA && redesUsadas >= (topicosUsados + 1) * 2)
+  const totalFeitas = redesUsadas + topicosUsados
+  const deveUsarTopico = (redesUsadas >= REDES_QUOTA) ||
+    (topicosUsados < TOPICOS_QUOTA &&
+     totalFeitas > 0 &&
+     redesUsadas > 0 &&
+     (redesUsadas - topicosUsados) >= 2)
   const availablePersonal = available.filter(cat => PERSONAL_CATEGORIES.includes(cat))
 
   const tonePersonality: Record<string, string> = {
@@ -103,9 +108,14 @@ Explore a vida real, opinião e personalidade do usuário. Exemplos por categori
 Conecte com algo que o usuário DISSE no histórico para soar natural, não como formulário.
 data_hook = null. data_source = "TOPICO".`
     : `## TIPO AGORA: DADOS DAS REDES
-Fontes usadas: [${usedNetworkSources.join(', ') || 'nenhuma'}]
-Fontes DISPONÍVEIS: [${availableSources.join(', ') || 'todas usadas — repita qualquer uma'}]
-REGRA: use obrigatoriamente uma fonte de [Fontes DISPONÍVEIS]. Nunca repita a última fonte usada.`
+Fontes usadas até agora: [${usedNetworkSources.join(', ') || 'nenhuma'}]
+Última fonte usada: ${usedNetworkSources[usedNetworkSources.length - 1] || 'nenhuma'}
+Fontes DISPONÍVEIS (nunca usadas): [${availableSources.join(', ') || 'todas usadas — use qualquer uma exceto a última'}]
+
+REGRA ABSOLUTA:
+- O data_source DEVE ser exatamente um destes valores: STEAM, SPOTIFY, INSTAGRAM, TIKTOK, YOUTUBE, GITHUB, DISCORD, TWITTER/X
+- NUNCA use a mesma fonte da última pergunta (${usedNetworkSources[usedNetworkSources.length - 1] || 'nenhuma'})
+- Prefira fontes de [Fontes DISPONÍVEIS]`
 
   return `Você é o Claudemiro, um interrogador de personalidade digital.
 
@@ -216,7 +226,7 @@ export async function POST(req: Request) {
         blockedTopics: blocked,
         askedCategories: [reasoning.category].filter(Boolean),
         askedQuestions: [parsed.question].filter(Boolean),
-        usedDataSources: [reasoning.data_source].filter(Boolean),
+        usedDataSources: [normalizeDataSource(reasoning.data_source)].filter(Boolean),
       },
       scanned_data: raw,
     }).select().single()
@@ -238,7 +248,7 @@ export async function POST(req: Request) {
     const parsed = safeParse(dialogJson)
     const restored = [...msgs, { role: 'claudemiro', content: dialogJson, parsed, reasoning }]
     await supabase.from('chat_sessions').update({
-      messages: restored, phase_data: { ...s.phase_data, askedCategories: [...asked, reasoning.category].filter(Boolean), askedQuestions: [...prevQuestions, parsed.question].filter(Boolean), usedDataSources: [...prevSources, reasoning.data_source].filter(Boolean) }
+      messages: restored, phase_data: { ...s.phase_data, askedCategories: [...asked, reasoning.category].filter(Boolean), askedQuestions: [...prevQuestions, parsed.question].filter(Boolean), usedDataSources: [...prevSources, normalizeDataSource(reasoning.data_source)].filter(Boolean) }
     }).eq('id', sessionId)
     return NextResponse.json({ type: 'undo', messages: restored, interactionCount: asked.length })
   }
@@ -298,7 +308,7 @@ export async function POST(req: Request) {
   msgs.push({ role: 'claudemiro', content: dialogJson, parsed, reasoning })
   const newAsked = [...asked, reasoning.category].filter(Boolean)
   const newAskedQuestions = [...askedQuestions, parsed.question].filter(Boolean)
-  const newUsedSources = [...usedDataSources, reasoning.data_source].filter(Boolean)
+  const newUsedSources = [...usedDataSources, normalizeDataSource(reasoning.data_source)].filter(Boolean)
   await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions, usedDataSources: newUsedSources } }).eq('id', s.id)
 
   return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: newAsked.length >= MAX_INTERACTIONS, sessionId: s.id })
@@ -315,6 +325,21 @@ export async function GET() {
 
 function formatHistoryString(msgs: any[]): string {
   return msgs.map(m => m.role === 'claudemiro' ? `C: ${m.parsed?.comment || ''} ${m.parsed?.question || ''}` : `U: ${m.content}`).join('\n')
+}
+
+function normalizeDataSource(raw: string | undefined | null): string | null {
+  if (!raw) return null
+  const upper = raw.toUpperCase().trim()
+  if (upper === 'TOPICO' || upper === 'TÓPICO' || upper === 'TOPIC') return 'TOPICO'
+  const sourceMap: Record<string, string> = {
+    STEAM: 'STEAM', SPOTIFY: 'SPOTIFY', INSTAGRAM: 'INSTAGRAM',
+    TIKTOK: 'TIKTOK', YOUTUBE: 'YOUTUBE', GITHUB: 'GITHUB',
+    DISCORD: 'DISCORD', TWITTER: 'TWITTER/X', 'TWITTER/X': 'TWITTER/X', X: 'TWITTER/X',
+  }
+  for (const [key, val] of Object.entries(sourceMap)) {
+    if (upper.includes(key)) return val
+  }
+  return null
 }
 
 function safeParse(json: string): any {
