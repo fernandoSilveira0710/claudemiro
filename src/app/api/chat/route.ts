@@ -19,7 +19,8 @@ const PERSONAL_CATEGORIES = ['familia', 'relacionamento', 'signo', 'religiao', '
 // 20 perguntas: ~12 de redes (cobrir todas), ~8 de tópicos pessoais (cobrir 70% dos liberados)
 const REDES_QUOTA = 12
 const TOPICOS_QUOTA = 8
-// Alternância: proporção 2:1 (2 redes → 1 tópico), calculada em buildReasoningPrompt
+// Posições onde entra tópico pessoal (0-indexado): a cada ~2-3 perguntas de rede
+const TOPICO_POSITIONS = new Set([2, 5, 8, 11, 14, 17, 19])
 
 function digest(data: any): string {
   const L: string[] = []
@@ -68,7 +69,8 @@ function digest(data: any): string {
 // ============================================================
 function buildReasoningPrompt(
   data: string, blocked: string[], asked: string[], history: string,
-  mode: string, askedQuestions: string[] = [], usedDataSources: string[] = []
+  mode: string, askedQuestions: string[] = [], usedDataSources: string[] = [],
+  lastCategories: string[] = []
 )
 : string {
   const available = ALL_CATEGORIES.filter(cat => !asked.includes(cat) && !blocked.includes(cat))
@@ -79,29 +81,24 @@ function buildReasoningPrompt(
   const usedNetworkSources = usedDataSources.filter(s => s !== 'TOPICO')
   const availableSources = presentSources.filter(s => !usedNetworkSources.includes(s))
 
-  // ── Contagens reais salvas no usedDataSources ──
-  const redesFeitas = usedNetworkSources.length
-  const topicosFeitos = usedDataSources.filter(s => s === 'TOPICO').length
-  const totalFeitas = redesFeitas + topicosFeitos  // total real de perguntas feitas
+  // Posição atual na sessão (determinística)
+  const totalFeitas = asked.length
+  const deveUsarTopico = TOPICO_POSITIONS.has(totalFeitas) ||
+    (usedNetworkSources.length >= REDES_QUOTA)
 
-  // Tópicos pessoais liberados e pendentes
+  // Tópicos liberados pelo usuário (não bloqueados, pessoais)
   const availablePersonal = available.filter(cat => PERSONAL_CATEGORIES.includes(cat))
+
+  // Tópicos liberados que ainda não foram perguntados (para garantir cobertura de 70%)
   const topicosLiberados = PERSONAL_CATEGORIES.filter(cat => !blocked.includes(cat))
   const topicosNaoFeitos = topicosLiberados.filter(cat => !asked.includes(cat))
   const coberturaTopicos = topicosLiberados.length > 0
     ? (topicosLiberados.length - topicosNaoFeitos.length) / topicosLiberados.length
     : 1
-  const topicosNecessarios = Math.max(0, Math.ceil(topicosLiberados.length * 0.7) - topicosFeitos)
+  // Se faltam muitas perguntas pra atingir 70% de cobertura, priorizar tópico
   const perguntasRestantes = MAX_INTERACTIONS - totalFeitas
-
-  // Proporção 2:1 — a cada 2 redes, 1 tópico obrigatório
-  // Ex: 0 redes 0 tópicos → rede | 1r 0t → rede | 2r 0t → TÓPICO | 3r 1t → rede | 4r 1t → rede | 5r 1t → TÓPICO
-  const deveUsarTopico =
-    (redesFeitas >= REDES_QUOTA) ||                                    // esgotou cota de redes
-    (topicosFeitos < TOPICOS_QUOTA &&                                  // ainda tem cota de tópicos
-      (redesFeitas >= (topicosFeitos + 1) * 2)) ||                     // proporção 2:1 atingida
-    (topicosNecessarios > 0 && perguntasRestantes <= topicosNecessarios + 1) // emergência de cobertura
-  const devePriorizarTopico = deveUsarTopico
+  const topicosNecessarios = Math.ceil(topicosLiberados.length * 0.7) - (topicosLiberados.length - topicosNaoFeitos.length)
+  const devePriorizarTopico = deveUsarTopico || (topicosNecessarios > 0 && perguntasRestantes <= topicosNecessarios + 2)
 
   const tonePersonality: Record<string, string> = {
     engracado: 'Você é debochado, usa gírias, zoeira pesada, humor ácido. Faz referências à cultura internet BR.',
@@ -163,9 +160,10 @@ ${data}
 ${blocked.length ? blocked.join(', ') : 'nenhum'}
 
 ## PROGRESSO DA SESSÃO
-Pergunta ${totalFeitas + 1} de ${MAX_INTERACTIONS} | Redes: ${redesFeitas}/${REDES_QUOTA} | Tópicos: ${topicosFeitos}/${TOPICOS_QUOTA}
-Redes exploradas: [${usedNetworkSources.join(', ') || 'nenhuma'}] | Redes disponíveis: [${availableSources.join(', ') || 'todas usadas'}]
-Tópicos cobertos: ${Math.round(coberturaTopicos * 100)}% (meta: 70%) | Tópicos pendentes: ${topicosNaoFeitos.join(', ') || 'todos cobertos'}
+Pergunta ${totalFeitas + 1} de ${MAX_INTERACTIONS}.
+Redes exploradas: [${usedNetworkSources.join(', ') || 'nenhuma'}] de [${presentSources.join(', ')}]
+Tópicos cobertos: ${Math.round(coberturaTopicos * 100)}% (meta: 70%)
+Categorias perguntadas: [${asked.join(', ') || 'nenhuma'}]
 
 ${tipoInstrucao}
 
@@ -175,10 +173,14 @@ ${questionsAsked}
 ## ÚLTIMAS TROCAS
 ${recentHistory}
 
+## ÚLTIMAS 3 CATEGORIAS USADAS (proibido repetir assunto delas)
+${lastCategories.length ? lastCategories.map((c,i) => `${i+1}. ${c}`).join(', ') : 'nenhuma ainda'}
+REGRA CRÍTICA: a próxima pergunta deve ser sobre um assunto DIFERENTE das últimas 3 acima.
+Mesmo que a categoria mude no nome, se o ASSUNTO for parecido (ex: família, pai, mãe, irmão = mesmo cluster), é repetição.
+
 ## TAREFA
 Escolha a próxima pergunta seguindo o tipo acima.
-O comment reage à última resposta. A question coleta nova informação.
-NÃO analise, NÃO conclua, NÃO dê veredito parcial — apenas pergunte.
+NÃO analise, NÃO conclua — apenas colete nova informação sobre um assunto diferente dos recentes.
 
 Responda APENAS JSON:
 {"category":"...","data_hook":"dado literal ou null","data_source":"TOPICO ou nome exato da rede","angle":"ângulo único da pergunta","tone_note":"como o tom se aplica aqui"}`
@@ -222,16 +224,17 @@ O comment reage ao que ele disse. A question avança para nova informação.
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "reação curta e com personalidade ao que o usuário acabou de dizer — foque no que ele DISSE, não em dados das redes. 1 frase no tom certo. Não seja neutro, mas também não tire conclusões ou faça análise profunda.",
-  "question": "pergunta única para coletar nova informação. Se tem data_hook: cite o dado real. Se é tópico pessoal: pergunta direta sobre a vida sem citar redes/jogos. NUNCA comece com Qual é o seu / O que você acha / Como você se sente.",
+  "comment": "reação CURTÍSSIMA (máx 10 palavras) ao que ele acabou de dizer. NÃO conecte com a pergunta seguinte. NÃO mencione família/pai/mãe se a próxima pergunta muda de assunto. Só acuse o recibo da resposta no tom certo.",
+  "question": "pergunta sobre a categoria definida no raciocínio. COMPLETAMENTE independente do comment acima — NÃO deve parecer continuação do tema anterior. Aborda ângulo novo do zero. Sem Qual é o seu / O que você acha.",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
 REGRAS:
-- comment: reaja à ÚLTIMA resposta do usuário. Sem veredito parcial, sem "então você é X".
-- question: UMA pergunta, ângulo novo, informação ainda não coletada.
+- comment: MÁXIMO 10 palavras. Só reage à última resposta. Sem análise, sem conectar com próxima.
+- question: sobre a categoria do raciocínio — NÃO mencione o tema do comment.
 - options: 2-4 curtas e específicas, ou null. Última SEMPRE "Outro 🖊️" se tiver opções.
-- NUNCA repita pergunta do histórico nem tema já esgotado.`
+- PROIBIDO: repetir assunto das últimas 2 respostas mesmo com categoria diferente.
+- PROIBIDO: comment mencionar o assunto da próxima pergunta.`
 }
 
 // ============================================================
@@ -249,7 +252,7 @@ export async function POST(req: Request) {
     let raw: ScannedUserData = {}
     try { raw = await scanUserData(user.id) } catch {}
     const dataStr = digest(raw)
-    const reasoningPrompt = buildReasoningPrompt(dataStr, blocked, [], '', mode, [], [])
+    const reasoningPrompt = buildReasoningPrompt(dataStr, blocked, [], '', mode, [], [], [])
     const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
     const dialogPrompt = buildDialogPrompt(dataStr, '', mode, reasoning)
@@ -278,7 +281,7 @@ export async function POST(req: Request) {
     const hist = formatHistoryString(msgs)
     const prevQuestions = (s.phase_data?.askedQuestions || []).slice(0, -1)
     const prevSources = (s.phase_data?.usedDataSources || []).slice(0, -1)
-    const reasoningJson = await chatCompletion([{ role: 'user', content: buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, prevQuestions, prevSources) }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
+    const reasoningJson = await chatCompletion([{ role: 'user', content: buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, prevQuestions, prevSources, asked.slice(-3)) }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
     const dialogJson = await chatCompletion([{ role: 'user', content: buildDialogPrompt(dataStr, hist, s.mode, reasoning) }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
     const parsed = safeParse(dialogJson)
@@ -319,10 +322,11 @@ export async function POST(req: Request) {
   const hist = formatHistoryString(msgs)
 
   let reasoningPrompt: string
+  const lastCategories = asked.slice(-3)
   if (asked.length >= MAX_INTERACTIONS) {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources) + '\n[' + asked.length + ' perguntas feitas. Chega — category DEVE ser "veredito" agora.]'
+    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources, lastCategories) + '\n[' + asked.length + ' perguntas feitas. Chega — category DEVE ser "veredito" agora.]'
   } else {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources)
+    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources, lastCategories)
   }
 
   const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
