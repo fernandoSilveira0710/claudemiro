@@ -175,7 +175,7 @@ export function ChatInterface() {
     <div className="min-h-screen bg-[#0D0221] flex flex-col relative">
       <ChatAtmosphere
         interactionCount={interactionCount}
-        maxInteractions={10}
+        maxInteractions={20}
         isDone={isDone}
         mode={mode || 'engracado'}
       />
@@ -191,7 +191,7 @@ export function ChatInterface() {
       <div className="flex-1 overflow-y-auto relative z-10">
         <ChatProgressBar
           interactionCount={interactionCount}
-          maxInteractions={10}
+          maxInteractions={20}
           isDone={isDone}
         />
 

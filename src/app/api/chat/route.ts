@@ -13,11 +13,14 @@ export const AVAILABLE_TOPICS = [
   { id: 'academia', label: 'Academia/Fitness', emoji: '💪' }, { id: 'internet', label: 'Tretas da Internet', emoji: '🍿' },
 ]
 
-const MAX_INTERACTIONS = 10
+const MAX_INTERACTIONS = 20
 const ALL_CATEGORIES = ['games', 'musica', 'carreira', 'hobbies', 'futebol', 'animes', 'filmes', 'familia', 'relacionamento', 'signo', 'religiao', 'politica', 'internet', 'academia', 'personalidade', 'infancia', 'sonhos', 'medos']
 const PERSONAL_CATEGORIES = ['familia', 'relacionamento', 'signo', 'religiao', 'politica', 'personalidade', 'infancia', 'sonhos', 'medos', 'futebol', 'academia']
-const REDES_QUOTA = 5
-const TOPICOS_QUOTA = 5
+// 20 perguntas: ~12 de redes (cobrir todas), ~8 de tópicos pessoais (cobrir 70% dos liberados)
+const REDES_QUOTA = 12
+const TOPICOS_QUOTA = 8
+// Posições onde entra tópico pessoal (0-indexado): a cada ~2-3 perguntas de rede
+const TOPICO_POSITIONS = new Set([2, 5, 8, 11, 14, 17, 19])
 
 function digest(data: any): string {
   const L: string[] = []
@@ -67,22 +70,34 @@ function digest(data: any): string {
 function buildReasoningPrompt(
   data: string, blocked: string[], asked: string[], history: string,
   mode: string, askedQuestions: string[] = [], usedDataSources: string[] = []
-): string {
+)
+: string {
   const available = ALL_CATEGORIES.filter(cat => !asked.includes(cat) && !blocked.includes(cat))
+
+  // Fontes de redes presentes nos dados
   const allSources = ['STEAM', 'SPOTIFY', 'INSTAGRAM', 'TIKTOK', 'YOUTUBE', 'GITHUB', 'DISCORD', 'TWITTER/X']
   const presentSources = allSources.filter(s => data.includes(`[${s}]`))
   const usedNetworkSources = usedDataSources.filter(s => s !== 'TOPICO')
   const availableSources = presentSources.filter(s => !usedNetworkSources.includes(s))
-  const redesUsadas = usedNetworkSources.length
-  const topicosUsados = usedDataSources.filter(s => s === 'TOPICO').length
-  const totalFeitas = asked.length  // usa asked.length como fonte de verdade, não usedDataSources
 
-  // Padrão fixo: rede, rede, TOPICO, rede, rede, TOPICO, rede, rede, TOPICO, rede
-  // Posições 2,5,8 (0-indexado) = tópico pessoal
-  const TOPICO_POSITIONS = new Set([2, 5, 8])
+  // Posição atual na sessão (determinística)
+  const totalFeitas = asked.length
   const deveUsarTopico = TOPICO_POSITIONS.has(totalFeitas) ||
-    (redesUsadas >= REDES_QUOTA && topicosUsados < TOPICOS_QUOTA)
+    (usedNetworkSources.length >= REDES_QUOTA)
+
+  // Tópicos liberados pelo usuário (não bloqueados, pessoais)
   const availablePersonal = available.filter(cat => PERSONAL_CATEGORIES.includes(cat))
+
+  // Tópicos liberados que ainda não foram perguntados (para garantir cobertura de 70%)
+  const topicosLiberados = PERSONAL_CATEGORIES.filter(cat => !blocked.includes(cat))
+  const topicosNaoFeitos = topicosLiberados.filter(cat => !asked.includes(cat))
+  const coberturaTopicos = topicosLiberados.length > 0
+    ? (topicosLiberados.length - topicosNaoFeitos.length) / topicosLiberados.length
+    : 1
+  // Se faltam muitas perguntas pra atingir 70% de cobertura, priorizar tópico
+  const perguntasRestantes = MAX_INTERACTIONS - totalFeitas
+  const topicosNecessarios = Math.ceil(topicosLiberados.length * 0.7) - (topicosLiberados.length - topicosNaoFeitos.length)
+  const devePriorizarTopico = deveUsarTopico || (topicosNecessarios > 0 && perguntasRestantes <= topicosNecessarios + 2)
 
   const tonePersonality: Record<string, string> = {
     engracado: 'Você é debochado, usa gírias, zoeira pesada, humor ácido. Faz referências à cultura internet BR.',
@@ -90,75 +105,82 @@ function buildReasoningPrompt(
     profissional: 'Você é analítico, sério. Linguagem formal mas acessível. Zero zoeira.',
   }
 
-  const recentHistory = history.split('\n').slice(-8).join('\n') || 'Início da conversa'
-  const questionsAsked = askedQuestions.length ? askedQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n') : 'Nenhuma ainda.'
+  const recentHistory = history.split('\n').slice(-6).join('\n') || 'Início da conversa'
+  const questionsAsked = askedQuestions.length
+    ? askedQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n')
+    : 'Nenhuma ainda.'
 
-  const tipoInstrucao = deveUsarTopico
-    ? `## TIPO AGORA: TÓPICO PESSOAL OBRIGATÓRIO
-ATENÇÃO: esta pergunta NÃO pode mencionar Steam, jogos, redes sociais ou dados das plataformas.
-É uma pergunta sobre a VIDA REAL do usuário.
+  const tipoInstrucao = devePriorizarTopico
+    ? `## TIPO AGORA: TÓPICO PESSOAL
+Categorias pessoais ainda não perguntadas: [${availablePersonal.filter(c => !asked.includes(c)).join(', ') || 'todas cobertas — repita alguma com ângulo novo'}]
+Meta de cobertura: 70% dos tópicos liberados. Cobertura atual: ${Math.round(coberturaTopicos * 100)}%
+Tópicos ainda necessários para meta: ${Math.max(0, topicosNecessarios)}
 
-Categorias disponíveis: [${availablePersonal.length ? availablePersonal.join(', ') : available.join(', ')}]
+REGRA: esta pergunta é sobre a VIDA REAL — sem citar jogos, Steam, redes sociais, dados digitais.
+Escolha UMA categoria e faça UMA pergunta direta. Conecte com o histórico se soar natural.
 
-Escolha UMA e pergunte diretamente sobre a vida dele:
-- relacionamento → "tá solteiro, enrolado ou largado?" / "a pessoa do lado aguenta o caos ou é mais caos que você?"
-- familia → "é tipo grudado na família ou sumiu e só aparece no natal?"
-- signo → "qual é o signo? acredita nisso ou acha uma baboseira?"
-- infancia → "qual era o sonho de criança que virou pó?"
-- sonhos → "qual o plano grande que nunca saiu do papel?"
-- medos → "qual o maior medo que não admite nem bêbado?"
-- politica → "vota em quem? pode falar, eu não conto pra ninguém"
-- academia → "malha ou é do time que renova a mensalidade e não vai?"
-- futebol → "torce pra qual time? e chora quando perde ou faz pose de isentão?"
+Exemplos de perguntas por categoria:
+- relacionamento → "tá solteiro, enrolado ou é casado(a) sofrido(a)?"
+- familia → "família presente no dia a dia ou cada um no seu canto?"
+- signo → "qual o signo? acredita ou acha papo de losango?"
+- infancia → "qual era o sonho da infância antes da vida cobrar o aluguel?"
+- sonhos → "tem algum plano grande engavetado esperando o momento certo?"
+- medos → "qual o maior medo que não fala em voz alta nem pra travesseiro?"
+- politica → "vota em quem? pode falar, prometo que não vou julgar (muito)"
+- academia → "academia: vai, renova e não vai, ou nem assina?"
+- futebol → "qual time? e como lida quando perde — nega, sofre ou culpa o árbitro?"
+- carreira → "tá satisfeito com o trampo ou só esperando a sexta-feira?"
+- internet → "qual treta da internet te faz perder a fé na humanidade?"
 
-PROIBIDO: mencionar Lethal Company, Steam, Instagram, YouTube, GitHub, jogos, redes sociais.
-A pergunta deve parecer de um amigo bisbilhoteiro perguntando sobre a vida, não um chatbot.
+PROIBIDO no comment e na question: Steam, jogos, redes, plataformas digitais.
 data_hook = null. data_source = "TOPICO".`
-    : `## TIPO AGORA: DADOS DAS REDES
-Fontes usadas até agora: [${usedNetworkSources.join(', ') || 'nenhuma'}]
-Última fonte usada: ${usedNetworkSources[usedNetworkSources.length - 1] || 'nenhuma'}
-Fontes DISPONÍVEIS (nunca usadas): [${availableSources.join(', ') || 'todas usadas — use qualquer uma exceto a última'}]
+    : `## TIPO AGORA: REDE SOCIAL
+Fontes presentes: [${presentSources.join(', ')}]
+Fontes usadas: [${usedNetworkSources.join(', ') || 'nenhuma'}]
+Última usada: ${usedNetworkSources[usedNetworkSources.length - 1] || 'nenhuma'}
+Fontes NÃO exploradas ainda: [${availableSources.join(', ') || 'todas já usadas'}]
 
-REGRA ABSOLUTA:
-- O data_source DEVE ser exatamente um destes valores: STEAM, SPOTIFY, INSTAGRAM, TIKTOK, YOUTUBE, GITHUB, DISCORD, TWITTER/X
-- NUNCA use a mesma fonte da última pergunta (${usedNetworkSources[usedNetworkSources.length - 1] || 'nenhuma'})
-- Prefira fontes de [Fontes DISPONÍVEIS]`
+OBRIGATÓRIO: usar uma fonte de [Fontes NÃO exploradas ainda]. Se todas usadas, qualquer exceto a última.
+data_source = nome exato da rede (STEAM, SPOTIFY, INSTAGRAM, TIKTOK, YOUTUBE, GITHUB, DISCORD, TWITTER/X).
 
-  return `Você é o Claudemiro, um interrogador de personalidade digital.
+REGRA DE QUALIDADE: se a fonte escolhida só tem dados zerados (0 seguidores, 0 repos, 0 vídeos)
+e já houve outra pergunta sobre "zero de algo", prefira uma fonte com dados reais para variar.`
 
-## TOM FIXO DA SESSÃO
+  return `Você é o Claudemiro. Papel: INTERROGADOR DE PERSONALIDADE, não analista.
+Seu trabalho agora é COLETAR, não concluir. Guarde as conclusões para o veredito final.
+
+## TOM FIXO
 ${tonePersonality[mode] || tonePersonality.casual}
 
-## DADOS DAS REDES DO USUÁRIO
+## DADOS DAS REDES
 ${data}
 
-## TÓPICOS BLOQUEADOS (nunca pergunte sobre estes)
+## TÓPICOS BLOQUEADOS
 ${blocked.length ? blocked.join(', ') : 'nenhum'}
 
-## CATEGORIAS DISPONÍVEIS
-${available.join(', ')}
+## PROGRESSO DA SESSÃO
+Pergunta ${totalFeitas + 1} de ${MAX_INTERACTIONS}.
+Redes exploradas: [${usedNetworkSources.join(', ') || 'nenhuma'}] de [${presentSources.join(', ')}]
+Tópicos cobertos: ${Math.round(coberturaTopicos * 100)}% (meta: 70%)
+Categorias perguntadas: [${asked.join(', ') || 'nenhuma'}]
 
 ${tipoInstrucao}
 
-## PERGUNTAS JÁ FEITAS (proibido repetir tema ou intenção)
+## PERGUNTAS JÁ FEITAS — NÃO REPETIR TEMA NEM INTENÇÃO
 ${questionsAsked}
 
-## ÚLTIMAS MENSAGENS
+## ÚLTIMAS TROCAS
 ${recentHistory}
 
 ## TAREFA
-${deveUsarTopico
-  ? `1. Escolha UMA categoria de [Categorias pessoais disponíveis]
-2. Formule um ângulo direto e pessoal sobre aquela categoria
-3. Conecte com algo do histórico se possível`
-  : `1. Escolha UMA fonte de [Fontes DISPONÍVEIS]
-2. Escolha categoria que combine
-3. Ângulo específico baseado no dado real
-4. Diferente de tudo já perguntado?`}
+Escolha a próxima pergunta seguindo o tipo acima.
+O comment reage à última resposta. A question coleta nova informação.
+NÃO analise, NÃO conclua, NÃO dê veredito parcial — apenas pergunte.
 
 Responda APENAS JSON:
-{"category":"...","data_hook":"dado literal ou null","data_source":"TOPICO ou nome da rede","angle":"ângulo único","tone_note":"como o tom se aplica"}`
+{"category":"...","data_hook":"dado literal ou null","data_source":"TOPICO ou nome exato da rede","angle":"ângulo único da pergunta","tone_note":"como o tom se aplica aqui"}`
 }
+
 
 // ============================================================
 // PASSO 2: DIÁLOGO
@@ -190,20 +212,23 @@ Antes de escrever a question:
 - Se NÃO existe nos dados → ajuste o ângulo para algo que está nos dados.
 - NUNCA conecte a resposta do usuário com informações que você não tem.
 
+## PAPEL
+Você coleta informações, NÃO analisa ainda. Não dê conclusões, não faça veredito parcial.
+O comment reage ao que ele disse. A question avança para nova informação.
+
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "opinião/reação sobre o que o usuário disse — 1 frase com caráter, no tom certo. Não seja neutro. Modo engracado: zoeira ou análise irônica. Casual: comentário genuíno. Profissional: observação analítica.",
-  "question": "Se tem data_hook: comece com o dado real ou provocação baseada nele. Se é tópico pessoal (data_hook null): pergunta direta e pessoal conectada com algo do histórico. NUNCA comece com Qual e o seu, O que voce acha, Como voce se sente. Soe como alguém curioso com personalidade, não formulário.",
+  "comment": "reação curta e com personalidade ao que o usuário acabou de dizer — foque no que ele DISSE, não em dados das redes. 1 frase no tom certo. Não seja neutro, mas também não tire conclusões ou faça análise profunda.",
+  "question": "pergunta única para coletar nova informação. Se tem data_hook: cite o dado real. Se é tópico pessoal: pergunta direta sobre a vida sem citar redes/jogos. NUNCA comece com Qual é o seu / O que você acha / Como você se sente.",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
-REGRAS ABSOLUTAS:
-- comment: reaja ao que ele ACABOU de dizer (última linha do histórico). NÃO mencione dados de outras redes no comment — ele deve reagir à resposta do usuário, não reciclar Steam/YouTube/etc.
-- question: use o data_hook e o angle — se não tiver dado real para sustentar, mude o angle
-- options: 2-3 itens específicos ou null. Última opção SEMPRE "Outro 🖊️" quando presente
-- NUNCA repita pergunta do histórico
-- NUNCA mencione Lethal Company, Steam, ou qualquer dado de rede no comment se a categoria atual não for games/hobbies`
+REGRAS:
+- comment: reaja à ÚLTIMA resposta do usuário. Sem veredito parcial, sem "então você é X".
+- question: UMA pergunta, ângulo novo, informação ainda não coletada.
+- options: 2-4 curtas e específicas, ou null. Última SEMPRE "Outro 🖊️" se tiver opções.
+- NUNCA repita pergunta do histórico nem tema já esgotado.`
 }
 
 // ============================================================
