@@ -15,12 +15,19 @@ export const AVAILABLE_TOPICS = [
 
 const MAX_INTERACTIONS = 20
 const ALL_CATEGORIES = ['games', 'musica', 'carreira', 'hobbies', 'futebol', 'animes', 'filmes', 'familia', 'relacionamento', 'signo', 'religiao', 'politica', 'internet', 'academia', 'personalidade', 'infancia', 'sonhos', 'medos']
-const PERSONAL_CATEGORIES = ['familia', 'relacionamento', 'signo', 'religiao', 'politica', 'personalidade', 'infancia', 'sonhos', 'medos', 'futebol', 'academia']
-// 20 perguntas: ~12 de redes (cobrir todas), ~8 de tópicos pessoais (cobrir 70% dos liberados)
-const REDES_QUOTA = 12
-const TOPICOS_QUOTA = 8
-// Posições onde entra tópico pessoal (0-indexado): a cada ~2-3 perguntas de rede
-const TOPICO_POSITIONS = new Set([2, 5, 8, 11, 14, 17, 19])
+
+// Categorias que NÃO precisam de dados de rede (vida pessoal + tópicos da lista)
+const PERSONAL_CATEGORIES = ['familia', 'relacionamento', 'signo', 'religiao', 'politica', 'personalidade', 'infancia', 'sonhos', 'medos', 'futebol', 'academia', 'musica', 'animes', 'filmes', 'internet', 'carreira']
+
+// IDs dos tópicos da tela de seleção — o que o usuário marcou como bloqueado vem daqui
+const SELECTABLE_TOPIC_IDS = ['games', 'animes', 'filmes', 'futebol', 'musica', 'politica', 'religiao', 'signo', 'relacionamento', 'carreira', 'academia', 'internet']
+
+// Meta: cobrir pelo menos 65% dos tópicos liberados (não bloqueados)
+const TOPIC_COVERAGE_TARGET = 0.65
+
+// 20 perguntas: ~11 de redes + ~9 de tópicos (garantir cobertura dos liberados)
+const REDES_QUOTA = 11
+const TOPICOS_QUOTA = 9
 
 function digest(data: any): string {
   const L: string[] = []
@@ -81,24 +88,36 @@ function buildReasoningPrompt(
   const usedNetworkSources = usedDataSources.filter(s => s !== 'TOPICO')
   const availableSources = presentSources.filter(s => !usedNetworkSources.includes(s))
 
-  // Posição atual na sessão (determinística)
-  const totalFeitas = asked.length
-  const deveUsarTopico = TOPICO_POSITIONS.has(totalFeitas) ||
-    (usedNetworkSources.length >= REDES_QUOTA)
+  // Contagens reais baseadas em usedDataSources (fonte de verdade)
+  const redesFeitas = usedNetworkSources.length
+  const topicosFeitos = usedDataSources.filter(s => s === 'TOPICO').length
+  const totalFeitas = redesFeitas + topicosFeitos
 
-  // Tópicos liberados pelo usuário (não bloqueados, pessoais)
+  // Proporção 2:1 — a cada 2 redes, 1 tópico obrigatório
+  const deveUsarTopico =
+    (redesFeitas >= REDES_QUOTA) ||
+    (topicosFeitos < TOPICOS_QUOTA && redesFeitas >= (topicosFeitos + 1) * 2)
+
+  // Tópicos da tela de seleção que o usuário NÃO bloqueou
+  const topicosLiberados = SELECTABLE_TOPIC_IDS.filter(id => !blocked.includes(id))
+  // Quais desses já foram cobertos (o asked contém a categoria correspondente)
+  const topicosJaCobertos = topicosLiberados.filter(id => asked.includes(id))
+  const topicosNaoFeitos = topicosLiberados.filter(id => !asked.includes(id))
+  const coberturaTopicos = topicosLiberados.length > 0
+    ? topicosJaCobertos.length / topicosLiberados.length
+    : 1
+  // Quantos ainda precisam ser feitos para atingir a meta
+  const metaNumerica = Math.ceil(topicosLiberados.length * TOPIC_COVERAGE_TARGET)
+  const topicosNecessarios = Math.max(0, metaNumerica - topicosJaCobertos.length)
+  const perguntasRestantes = MAX_INTERACTIONS - totalFeitas
+
+  // Categorias pessoais disponíveis — inclui todos os tópicos da lista + categorias pessoais extras
   const availablePersonal = available.filter(cat => PERSONAL_CATEGORIES.includes(cat))
 
-  // Tópicos liberados que ainda não foram perguntados (para garantir cobertura de 70%)
-  const topicosLiberados = PERSONAL_CATEGORIES.filter(cat => !blocked.includes(cat))
-  const topicosNaoFeitos = topicosLiberados.filter(cat => !asked.includes(cat))
-  const coberturaTopicos = topicosLiberados.length > 0
-    ? (topicosLiberados.length - topicosNaoFeitos.length) / topicosLiberados.length
-    : 1
-  // Se faltam muitas perguntas pra atingir 70% de cobertura, priorizar tópico
-  const perguntasRestantes = MAX_INTERACTIONS - totalFeitas
-  const topicosNecessarios = Math.ceil(topicosLiberados.length * 0.7) - (topicosLiberados.length - topicosNaoFeitos.length)
-  const devePriorizarTopico = deveUsarTopico || (topicosNecessarios > 0 && perguntasRestantes <= topicosNecessarios + 2)
+  // Forçar tópico se: proporção 2:1 atingida, cota de redes esgotada,
+  // ou emergência de cobertura (não vai sobrar perguntas suficientes)
+  const emergenciaCobertura = topicosNecessarios > 0 && perguntasRestantes <= topicosNecessarios + 2
+  const devePriorizarTopico = deveUsarTopico || emergenciaCobertura
 
   const tonePersonality: Record<string, string> = {
     engracado: 'Você é debochado, usa gírias, zoeira pesada, humor ácido. Faz referências à cultura internet BR.',
@@ -113,9 +132,10 @@ function buildReasoningPrompt(
 
   const tipoInstrucao = devePriorizarTopico
     ? `## TIPO AGORA: TÓPICO PESSOAL
-Categorias pessoais ainda não perguntadas: [${availablePersonal.filter(c => !asked.includes(c)).join(', ') || 'todas cobertas — repita alguma com ângulo novo'}]
-Meta de cobertura: 70% dos tópicos liberados. Cobertura atual: ${Math.round(coberturaTopicos * 100)}%
-Tópicos ainda necessários para meta: ${Math.max(0, topicosNecessarios)}
+PENDENTES (cobrir pelo menos): [${topicosNaoFeitos.slice(0, 8).join(', ') || 'todos cobertos'}]
+Meta: ${Math.round(TOPIC_COVERAGE_TARGET * 100)}% dos tópicos liberados. Atual: ${Math.round(coberturaTopicos * 100)}% (${topicosJaCobertos.length}/${topicosLiberados.length})
+Tópicos necessários ainda: ${topicosNecessarios}
+PRIORIDADE: escolha da lista PENDENTES acima — especialmente os primeiros.
 
 REGRA: esta pergunta é sobre a VIDA REAL — sem citar jogos, Steam, redes sociais, dados digitais.
 Escolha UMA categoria e faça UMA pergunta direta. Conecte com o histórico se soar natural.
@@ -128,6 +148,12 @@ Exemplos de perguntas por categoria:
 - sonhos → "tem algum plano grande engavetado esperando o momento certo?"
 - medos → "qual o maior medo que não fala em voz alta nem pra travesseiro?"
 - politica → "vota em quem? pode falar, prometo que não vou julgar (muito)"
+- musica → "que tipo de música ouve? tem algum artista que define seu estado de espírito?"
+- animes → "curte anime? qual foi o que mais te marcou ou não aguenta nem o nome?"
+- filmes → "último filme ou série que te prendeu do início ao fim?"
+- internet → "qual treta da internet recente te tirou do sério ou pareceu surreal demais?"
+- carreira → "tá satisfeito com o trabalho atual ou já com um pé fora?"
+- hobbies → "fora os games, o que você faz quando quer desligar a cabeça?"
 - academia → "academia: vai, renova e não vai, ou nem assina?"
 - futebol → "qual time? e como lida quando perde — nega, sofre ou culpa o árbitro?"
 - carreira → "tá satisfeito com o trampo ou só esperando a sexta-feira?"
@@ -160,10 +186,10 @@ ${data}
 ${blocked.length ? blocked.join(', ') : 'nenhum'}
 
 ## PROGRESSO DA SESSÃO
-Pergunta ${totalFeitas + 1} de ${MAX_INTERACTIONS}.
-Redes exploradas: [${usedNetworkSources.join(', ') || 'nenhuma'}] de [${presentSources.join(', ')}]
-Tópicos cobertos: ${Math.round(coberturaTopicos * 100)}% (meta: 70%)
-Categorias perguntadas: [${asked.join(', ') || 'nenhuma'}]
+Pergunta ${totalFeitas + 1}/${MAX_INTERACTIONS} | Redes: ${redesFeitas}/${REDES_QUOTA} | Tópicos: ${topicosJaCobertos.length}/${metaNumerica} necessários (meta ${Math.round(TOPIC_COVERAGE_TARGET*100)}%)
+Redes usadas: [${usedNetworkSources.join(', ') || 'nenhuma'}] | Disponíveis: [${availableSources.join(', ') || 'todas usadas'}]
+Tópicos já cobertos: [${topicosJaCobertos.join(', ') || 'nenhum'}]
+Tópicos PENDENTES: [${topicosNaoFeitos.join(', ') || 'todos cobertos'}]
 
 ${tipoInstrucao}
 
