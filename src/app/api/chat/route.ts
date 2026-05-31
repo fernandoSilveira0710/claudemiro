@@ -120,7 +120,7 @@ function buildReasoningPrompt(
   const devePriorizarTopico = deveUsarTopico || emergenciaCobertura
 
   const tonePersonality: Record<string, string> = {
-    engracado: 'Você é debochado, usa gírias, zoeira pesada, humor ácido. Faz referências à cultura internet BR.',
+    engracado: 'Você é debochado e afiado, mas inteligente. O humor vem de observações espertas sobre contradições e ironias reais nos dados — nunca de xingar ou repetir bordões. Gírias BR naturais.',
     casual: 'Você é leve, direto, amigável. Gírias suaves. Sem forçar.',
     profissional: 'Você é analítico, sério. Linguagem formal mas acessível. Zero zoeira.',
   }
@@ -218,7 +218,7 @@ Responda APENAS JSON:
 // ============================================================
 function buildDialogPrompt(data: string, history: string, mode: string, reasoning: any): string {
   const toneVoice: Record<string, string> = {
-    engracado: 'debochado, irônico, zoeira pesada, gírias BR (nerdola, otaku fedido, marombeiro, trampa, trampar), emojis expressivos, pode xingar levemente',
+    engracado: 'observador e debochado como um amigo afiado. O humor vem da OBSERVAÇÃO ESPECÍFICA (notar uma contradição, uma ironia real no que a pessoa disse), nunca de xingar. Gírias BR naturais. PROIBIDO usar "otário", "nerdola", "bot", "fantasma" ou xingar a pessoa — isso é preguiçoso e repetitivo. Seja esperto, não grosseiro.',
     casual: 'leve, direto, gírias suaves, sem forçar humor, conversa natural',
     profissional: 'sério e analítico, linguagem formal mas acessível, sem gírias, sem emojis excessivos',
   }
@@ -247,16 +247,24 @@ Antes de escrever a question:
 Você coleta informações, NÃO analisa ainda. Não dê conclusões, não faça veredito parcial.
 O comment reage ao que ele disse. A question avança para nova informação.
 
+## COMO FAZER UM BOM COMMENT (modo engraçado)
+O comment reage ao CONTEÚDO ESPECÍFICO da última resposta — você inventa a reação na hora, nunca usa frase pronta.
+Princípio: a graça mora na OBSERVAÇÃO real (uma contradição, um exagero, uma ironia que a própria resposta revela), não num insulto colado na frente.
+Pergunte-se: "o que essa resposta específica revela de engraçado/curioso?" e comente ISSO, com suas próprias palavras, diferente a cada vez.
+Cada comentário deve ser único e nascer da resposta atual — se você poderia colar o mesmo comentário em qualquer resposta, está errado.
+
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "reação CURTÍSSIMA (máx 10 palavras) ao que ele acabou de dizer. NÃO conecte com a pergunta seguinte. NÃO mencione família/pai/mãe se a próxima pergunta muda de assunto. Só acuse o recibo da resposta no tom certo.",
-  "question": "pergunta sobre a categoria definida no raciocínio. COMPLETAMENTE independente do comment acima — NÃO deve parecer continuação do tema anterior. Aborda ângulo novo do zero. Sem Qual é o seu / O que você acha.",
+  "comment": "reação curta (máx 12 palavras) ao CONTEÚDO da última resposta. Específica, esperta. NÃO use xingamento genérico nem o mesmo bordão de antes. NÃO conecte com a pergunta seguinte.",
+  "question": "pergunta sobre a categoria definida no raciocínio. COMPLETAMENTE independente do comment acima. Aborda ângulo novo. Sem Qual é o seu / O que você acha.",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
 REGRAS:
-- comment: MÁXIMO 10 palavras. Só reage à última resposta. Sem análise, sem conectar com próxima.
+- comment: reage ao conteúdo específico da resposta. Humor por observação, nunca por xingamento.
+- NUNCA use as palavras "otário", "nerdola", "bot", "fantasma" como bordão repetido.
+- NUNCA repita um comentário/estrutura que já usou antes na conversa.
 - question: sobre a categoria do raciocínio — NÃO mencione o tema do comment.
 - options: 2-4 curtas e específicas, ou null. Última SEMPRE "Outro 🖊️" se tiver opções.
 - PROIBIDO: repetir assunto das últimas 2 respostas mesmo com categoria diferente.

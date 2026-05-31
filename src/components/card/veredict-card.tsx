@@ -26,7 +26,6 @@ interface VeredictCardProps {
   compact?: boolean
 }
 
-// Estilos de moldura por plano
 const FRAME_STYLES: Record<string, { ring: string; glow: string; tag: string; tagText: string }> = {
   brilhante: {
     ring: 'p-[3px] bg-gradient-to-br from-purple-400 via-pink-400 to-cyan-400',
@@ -66,7 +65,6 @@ export function VeredictCard({ veredict, compact }: VeredictCardProps) {
         transition={{ duration: 0.5 }}
         className={`relative rounded-3xl ${frame.ring} ${frame.glow} w-full max-w-sm`}
       >
-        {/* shimmer animado só no brilhante */}
         {veredict.frame_type === 'brilhante' && (
           <motion.div
             className="absolute inset-0 rounded-3xl opacity-50 pointer-events-none"
@@ -76,7 +74,6 @@ export function VeredictCard({ veredict, compact }: VeredictCardProps) {
           />
         )}
         <div className="rounded-[21px] overflow-hidden bg-[#0D0221] relative">
-          {/* tag do plano */}
           <div className={`absolute top-3 left-3 z-10 ${frame.tag} text-[#0D0221] text-[9px] font-black px-2 py-0.5 rounded-full`}>
             {frame.tagText}
           </div>
@@ -100,16 +97,18 @@ export function VeredictCard({ veredict, compact }: VeredictCardProps) {
       {!compact && (
         <>
           {/* ─── BADGE ─── */}
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }}
-            className="text-center">
-            <span className="inline-block px-5 py-2 rounded-full text-white font-black text-lg"
-              style={{ background: `${primary}30`, border: `1px solid ${primary}50` }}>
-              {veredict.veredict_badge}
-            </span>
-            {veredict.profession_label && (
-              <p className="text-[#F3E8FF]/50 text-sm mt-2">{veredict.profession_label}</p>
-            )}
-          </motion.div>
+          {veredict.veredict_badge && (
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }}
+              className="text-center">
+              <span className="inline-block px-5 py-2 rounded-full text-white font-black text-lg"
+                style={{ background: `${primary}30`, border: `1px solid ${primary}50` }}>
+                {veredict.veredict_badge}
+              </span>
+              {veredict.profession_label && (
+                <p className="text-[#F3E8FF]/50 text-sm mt-2">{veredict.profession_label}</p>
+              )}
+            </motion.div>
+          )}
 
           {/* ─── OPINIÃO FINAL do Claudemiro (destaque) ─── */}
           {veredict.final_opinion && (
@@ -125,9 +124,11 @@ export function VeredictCard({ veredict, compact }: VeredictCardProps) {
           )}
 
           {/* ─── RESUMO ─── */}
-          <div className="w-full max-w-md bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
-            <p className="text-[#F3E8FF]/70 text-sm leading-relaxed whitespace-pre-wrap">{veredict.veredict_text}</p>
-          </div>
+          {veredict.veredict_text && (
+            <div className="w-full max-w-md bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
+              <p className="text-[#F3E8FF]/70 text-sm leading-relaxed whitespace-pre-wrap">{veredict.veredict_text}</p>
+            </div>
+          )}
 
           {/* ─── DESTAQUES DAS REDES (ícones) ─── */}
           {highlights.length > 0 && (
