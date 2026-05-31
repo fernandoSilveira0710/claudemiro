@@ -262,22 +262,19 @@ export function ChatInterface() {
         <div className="border-t border-white/[0.06] p-4 bg-[#0D0221]/90 backdrop-blur z-10 relative">
           <p className="text-[10px] text-[#F3E8FF]/20 font-mono mb-3 text-center tracking-wider">ESCOLHA UMA OPÇÃO</p>
           <div className="max-w-2xl mx-auto flex gap-3 justify-center items-center">
-            {/* Refazer com marquinha de $ no canto */}
-            <div className="relative">
-              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-                onClick={() => { if (userPlan === 'FREE') { setShowPlanModal(true) } else { resetSession() } }}
-                className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-[#F3E8FF]/60 hover:text-white font-medium py-3 px-5 rounded-2xl border border-white/[0.08] text-sm transition-colors">
-                🔄 Refazer
-              </motion.button>
-              {/* badge $ — abre modal de planos */}
-              <button
-                onClick={() => setShowPlanModal(true)}
-                className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-[#0D0221] text-xs font-black shadow-[0_0_10px_rgba(245,158,11,0.5)] hover:scale-110 transition-transform"
+            {/* Refazer com $ embutido no canto */}
+            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => { if (userPlan === 'FREE') { setShowPlanModal(true) } else { resetSession() } }}
+              className="relative flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-[#F3E8FF]/60 hover:text-white font-medium py-3 pl-5 pr-9 rounded-2xl border border-white/[0.08] text-sm transition-colors overflow-visible">
+              🔄 Refazer
+              <span
+                onClick={(e) => { e.stopPropagation(); setShowPlanModal(true) }}
+                className="absolute top-1/2 -translate-y-1/2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-[#0D0221] text-[11px] font-black shadow-[0_0_8px_rgba(245,158,11,0.5)] hover:scale-110 transition-transform"
                 title="Ver planos"
               >
                 $
-              </button>
-            </div>
+              </span>
+            </motion.button>
             <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={openWizard}
               className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)] text-sm">

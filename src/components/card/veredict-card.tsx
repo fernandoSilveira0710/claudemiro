@@ -2,213 +2,184 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Switch } from '@/components/ui/switch'
-import { toast } from 'sonner'
 
+interface NetworkHighlight { platform: string; icon: string; label: string; value: string }
 interface VeredictCardProps {
   veredict: {
-    id: string
+    id?: string
     veredict_badge: string
     veredict_text: string
+    final_opinion?: string
     card_image_url?: string
+    base_image_url?: string
+    frame_type?: 'brilhante' | 'dourada' | 'cinza'
     tags?: { name: string; emoji: string; percentage: number }[]
     niche?: string
     niche_colors?: { primary: string; secondary: string; accent: string }
-    music_track?: { name: string; artist: string }
-    political_stance?: { label: string; percentage_lula: number; percentage_bolsonaro: number }
-    mode?: string
+    music_track?: { name: string; artist: string; spotifyUrl?: string }
+    network_highlights?: NetworkHighlight[]
+    user_name?: string
     profession_label?: string
     tips?: string[]
-    profiles?: { username: string; display_name: string; avatar_url: string }
+    profiles?: { username?: string; display_name?: string; avatar_url?: string }
   }
+  compact?: boolean
 }
 
-export function VeredictCard({ veredict }: VeredictCardProps) {
-  const [isPublic, setIsPublic] = useState(false)
-  const [generating, setGenerating] = useState(false)
-  const [cardUrl, setCardUrl] = useState(veredict.card_image_url)
+// Estilos de moldura por plano
+const FRAME_STYLES: Record<string, { ring: string; glow: string; tag: string; tagText: string }> = {
+  brilhante: {
+    ring: 'p-[3px] bg-gradient-to-br from-purple-400 via-pink-400 to-cyan-400',
+    glow: 'shadow-[0_0_40px_rgba(168,85,247,0.4)]',
+    tag: 'bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400',
+    tagText: 'BRILHANTE',
+  },
+  dourada: {
+    ring: 'p-[3px] bg-gradient-to-br from-amber-300 via-yellow-500 to-amber-600',
+    glow: 'shadow-[0_0_30px_rgba(245,158,11,0.35)]',
+    tag: 'bg-gradient-to-r from-amber-300 to-yellow-600',
+    tagText: 'DOURADA',
+  },
+  cinza: {
+    ring: 'p-[2px] bg-gradient-to-br from-gray-500 to-gray-700',
+    glow: 'shadow-[0_0_20px_rgba(0,0,0,0.3)]',
+    tag: 'bg-gray-600',
+    tagText: 'FREE',
+  },
+}
 
-  const handleGenerateCard = async () => {
-    // Isso seria feito na API de veredito — aqui é fallback
-    toast.info('Gerando card...')
-    setGenerating(true)
-    // Simularia a chamada pra /api/card
-    setGenerating(false)
-  }
-
-  const handleShare = () => {
-    const text = `${veredict.veredict_badge}\n\nDescubra o seu: claudemiro.app`
-    if (navigator.share) {
-      navigator.share({ title: 'Claudemiro', text, url: window.location.href })
-    } else {
-      navigator.clipboard.writeText(`${text}\n${window.location.href}`)
-      toast.success('Link copiado!')
-    }
-  }
-
+export function VeredictCard({ veredict, compact }: VeredictCardProps) {
+  const frame = FRAME_STYLES[veredict.frame_type || 'cinza']
   const primary = veredict.niche_colors?.primary || '#8B5CF6'
   const secondary = veredict.niche_colors?.secondary || '#EC4899'
+  const name = veredict.user_name || veredict.profiles?.display_name || ''
+  const cardImg = veredict.card_image_url || veredict.base_image_url
+  const highlights = (veredict.network_highlights || []).filter(h => h.value && h.value !== 'null')
 
   return (
-    <div className="min-h-screen flex flex-col items-center py-8 px-4">
-      {/* Card */}
+    <div className="w-full flex flex-col items-center gap-5">
+
+      {/* ─── A FIGURINHA (imagem Nano Banana + moldura do plano) ─── */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md rounded-3xl overflow-hidden shadow-2xl"
-        style={{ background: `linear-gradient(145deg, ${primary}, ${secondary})` }}
+        className={`relative rounded-3xl ${frame.ring} ${frame.glow} w-full max-w-sm`}
       >
-        {/* Hero com imagem */}
-        <div className="relative h-80 bg-black/20 flex items-center justify-center">
-          {cardUrl ? (
-            <img
-              src={cardUrl}
-              alt="Card Claudemiro"
-              className="w-full h-full object-cover"
-            />
+        {/* shimmer animado só no brilhante */}
+        {veredict.frame_type === 'brilhante' && (
+          <motion.div
+            className="absolute inset-0 rounded-3xl opacity-50 pointer-events-none"
+            style={{ background: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)' }}
+            animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+          />
+        )}
+        <div className="rounded-[21px] overflow-hidden bg-[#0D0221] relative">
+          {/* tag do plano */}
+          <div className={`absolute top-3 left-3 z-10 ${frame.tag} text-[#0D0221] text-[9px] font-black px-2 py-0.5 rounded-full`}>
+            {frame.tagText}
+          </div>
+          {cardImg ? (
+            <img src={cardImg} alt={veredict.veredict_badge} className="w-full aspect-[9/16] object-cover" referrerPolicy="no-referrer" />
           ) : (
-            <div className="text-center text-white/50">
-              <div className="text-6xl mb-4">🤖</div>
-              <p>Gerando sua imagem...</p>
+            <div className="w-full aspect-[9/16] flex items-center justify-center" style={{ background: `linear-gradient(145deg, ${primary}, ${secondary})` }}>
+              <div className="text-center text-white/60">
+                <div className="text-5xl mb-3">🤖</div>
+                <p className="text-sm">Gerando a figurinha...</p>
+              </div>
             </div>
           )}
         </div>
+      </motion.div>
 
-        <div className="p-6 space-y-5">
-          {/* Badge */}
-          <div className="text-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.3, type: 'spring' }}
-            >
-              <Badge
-                className="text-lg font-black px-4 py-2 bg-white/20 text-white border-white/20"
-                style={{ background: `${primary}40` }}
-              >
-                {veredict.veredict_badge}
-              </Badge>
+      {compact && (
+        <p className="text-center text-white font-black text-lg">{veredict.veredict_badge}</p>
+      )}
+
+      {!compact && (
+        <>
+          {/* ─── BADGE ─── */}
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }}
+            className="text-center">
+            <span className="inline-block px-5 py-2 rounded-full text-white font-black text-lg"
+              style={{ background: `${primary}30`, border: `1px solid ${primary}50` }}>
+              {veredict.veredict_badge}
+            </span>
+            {veredict.profession_label && (
+              <p className="text-[#F3E8FF]/50 text-sm mt-2">{veredict.profession_label}</p>
+            )}
+          </motion.div>
+
+          {/* ─── OPINIÃO FINAL do Claudemiro (destaque) ─── */}
+          {veredict.final_opinion && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+              className="w-full max-w-md relative rounded-2xl p-5 border"
+              style={{ background: `${primary}12`, borderColor: `${primary}30` }}>
+              <span className="absolute -top-3 left-4 text-2xl">💬</span>
+              <p className="text-white text-[15px] leading-relaxed font-medium italic">
+                "{veredict.final_opinion}"
+              </p>
+              <p className="text-[#F3E8FF]/30 text-[10px] text-right mt-2">— Claudemiro</p>
             </motion.div>
+          )}
+
+          {/* ─── RESUMO ─── */}
+          <div className="w-full max-w-md bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
+            <p className="text-[#F3E8FF]/70 text-sm leading-relaxed whitespace-pre-wrap">{veredict.veredict_text}</p>
           </div>
 
-          {/* Nome + Profissão */}
-          <div className="text-center">
-            <h2 className="text-2xl font-black text-white">
-              {veredict.profiles?.display_name || 'Usuário'}
-            </h2>
-            <p className="text-white/70 text-sm">{veredict.profession_label}</p>
-          </div>
-
-          {/* Tags */}
-          {veredict.tags && veredict.tags.length > 0 && (
-            <div className="space-y-2">
-              {veredict.tags.map((tag, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ width: 0 }}
-                  animate={{ width: '100%' }}
-                  transition={{ delay: 0.5 + i * 0.1, duration: 1 }}
-                  className="flex items-center gap-2"
-                >
-                  <span className="text-xl">{tag.emoji}</span>
-                  <span className="text-white font-semibold w-28 text-sm">{tag.name}</span>
-                  <div className="flex-1 bg-white/20 rounded-full h-3 overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-white"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${tag.percentage}%` }}
-                      transition={{ delay: 0.8 + i * 0.1, duration: 1.2 }}
-                    />
-                  </div>
-                  <span className="text-white font-bold text-sm w-10">{tag.percentage}%</span>
+          {/* ─── DESTAQUES DAS REDES (ícones) ─── */}
+          {highlights.length > 0 && (
+            <div className="w-full max-w-md grid grid-cols-1 gap-2">
+              {highlights.map((h, i) => (
+                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + i * 0.08 }}
+                  className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.05] rounded-xl px-3 py-2.5">
+                  <span className="text-xl">{h.icon}</span>
+                  <span className="text-[#F3E8FF]/40 text-xs w-28 shrink-0">{h.label}</span>
+                  <span className="text-white text-sm font-semibold truncate">{h.value}</span>
                 </motion.div>
               ))}
             </div>
           )}
 
-          {/* Música */}
+          {/* ─── MÚSICA ─── */}
           {veredict.music_track && (
-            <div className="flex items-center gap-3 bg-white/10 rounded-xl p-3">
+            <a
+              href={veredict.music_track.spotifyUrl || `https://open.spotify.com/search/${encodeURIComponent(`${veredict.music_track.name} ${veredict.music_track.artist}`)}`}
+              target="_blank" rel="noopener noreferrer"
+              className="w-full max-w-md flex items-center gap-3 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 rounded-xl p-3 transition-colors"
+            >
               <span className="text-2xl">🎵</span>
-              <div>
-                <p className="text-white font-semibold text-sm">{veredict.music_track.name}</p>
-                <p className="text-white/50 text-xs">{veredict.music_track.artist}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-sm truncate">{veredict.music_track.name}</p>
+                <p className="text-[#F3E8FF]/50 text-xs truncate">{veredict.music_track.artist}</p>
               </div>
-            </div>
+              <span className="text-[#1DB954] text-xs font-bold shrink-0">▶ Spotify</span>
+            </a>
           )}
 
-          {/* Política (se disponível) */}
-          {veredict.political_stance && veredict.political_stance.label !== 'Não detectado' && (
-            <div className="bg-white/10 rounded-xl p-3 text-center">
-              <p className="text-white font-bold text-lg">{veredict.political_stance.label}</p>
-              <div className="flex justify-center gap-4 mt-2">
-                <span className="text-red-400 text-sm">Lula {veredict.political_stance.percentage_lula}%</span>
-                <span className="text-blue-400 text-sm">Bolsonaro {veredict.political_stance.percentage_bolsonaro}%</span>
-              </div>
-            </div>
-          )}
-
-          {/* Resumo */}
-          <div className="bg-white/10 rounded-xl p-4">
-            <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
-              {veredict.veredict_text}
-            </p>
-          </div>
-
-          {/* Dicas */}
-          {veredict.tips && veredict.tips.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-white/70 text-xs font-bold uppercase">Dicas do Claudemiro</p>
-              {veredict.tips.map((tip, i) => (
-                <p key={i} className="text-white/60 text-xs">💡 {tip}</p>
+          {/* ─── TAGS / NÍVEIS ─── */}
+          {veredict.tags && veredict.tags.length > 0 && (
+            <div className="w-full max-w-md space-y-2">
+              {veredict.tags.map((tag, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-lg">{tag.emoji}</span>
+                  <span className="text-[#F3E8FF]/80 font-semibold w-32 text-sm truncate">{tag.name}</span>
+                  <div className="flex-1 bg-white/[0.06] rounded-full h-2.5 overflow-hidden">
+                    <motion.div className="h-full rounded-full" style={{ background: `linear-gradient(to right, ${primary}, ${secondary})` }}
+                      initial={{ width: 0 }} animate={{ width: `${tag.percentage}%` }} transition={{ delay: 0.6 + i * 0.1, duration: 1 }} />
+                  </div>
+                  <span className="text-white font-bold text-xs w-9 text-right">{tag.percentage}%</span>
+                </div>
               ))}
             </div>
           )}
 
-          {/* Hashtag */}
-          <div className="text-center">
-            <p className="text-white/40 text-sm">#ClaudemiroMeViu</p>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Ações */}
-      <div className="mt-6 space-y-4 w-full max-w-md">
-        <div className="flex items-center justify-between bg-white/5 rounded-xl p-3 border border-white/10">
-          <span className="text-white text-sm">Tornar perfil público</span>
-          <Switch
-            checked={isPublic}
-            onCheckedChange={async (checked) => {
-              setIsPublic(checked)
-              await fetch(`/api/profile`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ veredictId: veredict.id, isPublic: checked }),
-              })
-            }}
-          />
-        </div>
-
-        <Button
-          onClick={handleShare}
-          className="w-full bg-white text-black hover:bg-white/90 font-bold py-4 rounded-2xl"
-        >
-          Compartilhar nas redes 📤
-        </Button>
-
-        {!cardUrl && (
-          <Button
-            onClick={handleGenerateCard}
-            disabled={generating}
-            className="w-full bg-purple-600 hover:bg-purple-500 font-bold py-4 rounded-2xl"
-          >
-            {generating ? 'Gerando...' : 'Gerar Card com Imagem 🎨'}
-          </Button>
-        )}
-      </div>
+          {/* ─── HASHTAG ─── */}
+          <p className="text-[#F3E8FF]/30 text-sm">#ClaudemiroMeViu{name ? ` · ${name}` : ''}</p>
+        </>
+      )}
     </div>
   )
 }

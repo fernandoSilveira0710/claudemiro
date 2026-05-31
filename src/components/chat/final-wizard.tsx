@@ -30,6 +30,26 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
   const [veredict, setVeredict] = useState<any>(null)
   const [showCard, setShowCard] = useState(false)
   const [cooldownMessage, setCooldownMessage] = useState<string | null>(null)
+  const [resolvedTrack, setResolvedTrack] = useState<TrackInfo | null>(aiTrack)
+  const [loadingTrack, setLoadingTrack] = useState(false)
+
+  const connectSpotifyAndPick = async () => {
+    setLoadingTrack(true)
+    try {
+      const res = await fetch('/api/user/spotify-top')
+      const data = await res.json()
+      if (data.connected === false && data.authUrl) {
+        window.location.href = data.authUrl
+        return
+      }
+      const tracks: TrackInfo[] = data.tracks || []
+      if (tracks.length) {
+        const pick = tracks[Math.floor(Math.random() * tracks.length)]
+        setResolvedTrack(pick)
+      }
+    } catch { /* segue sem música */ }
+    setLoadingTrack(false)
+  }
 
   useEffect(() => {
     if (plan === 'FREE') {
@@ -185,34 +205,54 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {plan === 'PRO' && (<>
-                    {aiTrack && (
-                      <button onClick={() => { setSelectedTrack(aiTrack); generateVeredict() }} className="w-full p-4 rounded-2xl border border-purple-500/20 bg-purple-500/5 text-left hover:bg-purple-500/10 transition-colors">
-                        <div className="flex items-center gap-3"><span className="text-2xl">🎵</span><div><p className="text-white font-bold text-sm">{aiTrack.name}</p><p className="text-[#F3E8FF]/40 text-xs">{aiTrack.artist}</p></div><span className="ml-auto text-[10px] text-purple-400">sugestão da IA</span></div>
-                      </button>
-                    )}
-                    <button onClick={() => generateVeredict()} className="w-full p-4 rounded-2xl border border-green-500/20 bg-green-500/5 text-center hover:bg-green-500/10 transition-colors">
-                      <p className="text-white font-bold text-sm">🎧 Escolher no Spotify</p><p className="text-[10px] text-[#F3E8FF]/30 mt-0.5">Qualquer música que quiser</p>
+                  {/* Sem música resolvida ainda → conectar Spotify */}
+                  {!resolvedTrack && (
+                    <button
+                      onClick={connectSpotifyAndPick}
+                      disabled={loadingTrack}
+                      className="w-full p-4 rounded-2xl border border-green-500/30 bg-green-500/10 text-center hover:bg-green-500/20 transition-colors disabled:opacity-60"
+                    >
+                      {loadingTrack ? (
+                        <p className="text-white font-bold text-sm">Processando suas músicas...</p>
+                      ) : (
+                        <>
+                          <p className="text-white font-bold text-sm">🎧 Conectar Spotify</p>
+                          <p className="text-[10px] text-[#F3E8FF]/40 mt-0.5">Pego suas 10 mais ouvidas e escolho uma</p>
+                        </>
+                      )}
                     </button>
-                  </>)}
-                  {plan === 'FLEX' && aiTrack && (
+                  )}
+
+                  {/* Música resolvida → comportamento por plano */}
+                  {resolvedTrack && plan === 'PRO' && (
+                    <>
+                      <div className="p-4 rounded-2xl border border-purple-500/20 bg-purple-500/5">
+                        <div className="flex items-center gap-3"><span className="text-2xl">🎵</span><div><p className="text-white font-bold text-sm">{resolvedTrack.name}</p><p className="text-[#F3E8FF]/40 text-xs">{resolvedTrack.artist}</p></div><span className="ml-auto text-[10px] text-purple-400">sugestão</span></div>
+                      </div>
+                      <button onClick={() => { setSelectedTrack(resolvedTrack); generateVeredict() }} className="w-full p-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors">Usar essa música</button>
+                      <button onClick={connectSpotifyAndPick} disabled={loadingTrack} className="w-full p-3 rounded-2xl border border-green-500/20 bg-green-500/5 text-center hover:bg-green-500/10 text-sm text-white/80">🔀 Sortear outra</button>
+                    </>
+                  )}
+
+                  {resolvedTrack && plan === 'FLEX' && (
                     <div className="relative p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
-                      <div className="flex items-center gap-3"><span className="text-2xl">🎵</span><div><p className="text-white font-bold text-sm">{aiTrack.name}</p><p className="text-[#F3E8FF]/40 text-xs">{aiTrack.artist}</p></div></div>
-                      <p className="text-[10px] text-amber-400/70 mt-2">Música escolhida pela IA — incluída no seu plano</p>
-                      <button onClick={() => { setSelectedTrack(aiTrack); generateVeredict() }} className="w-full mt-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold py-2.5 rounded-xl border border-amber-500/30 text-sm transition-colors">Incluir e gerar</button>
+                      <div className="flex items-center gap-3"><span className="text-2xl">🎵</span><div><p className="text-white font-bold text-sm">{resolvedTrack.name}</p><p className="text-[#F3E8FF]/40 text-xs">{resolvedTrack.artist}</p></div><span className="ml-auto bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0D0221] text-[10px] font-black py-0.5 px-2 rounded-full">$</span></div>
+                      <p className="text-[10px] text-amber-400/70 mt-2">A música que carregou — incluída no seu pagamento</p>
+                      <button onClick={() => { setSelectedTrack(resolvedTrack); generateVeredict() }} className="w-full mt-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold py-2.5 rounded-xl border border-amber-500/30 text-sm transition-colors">Incluir e gerar</button>
                     </div>
                   )}
-                  {plan === 'FREE' && (<>
-                    {aiTrack && (
-                      <div className="relative p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-                        <div className="flex items-center gap-3 blur-[4px] select-none pointer-events-none"><span className="text-2xl">🎵</span><div><p className="text-white font-bold text-sm">{aiTrack.name}</p><p className="text-[#F3E8FF]/40 text-xs">{aiTrack.artist}</p></div></div>
-                        <button onClick={onUpgrade} className="absolute inset-0 flex items-center justify-center bg-[#0D0221]/30"><span className="bg-gradient-to-r from-purple-400 to-pink-500 text-white text-xs font-black py-1.5 px-4 rounded-full shadow-md">🔓 Liberar música</span></button>
-                      </div>
-                    )}
-                    <button onClick={() => { setSelectedTrack(null); generateVeredict() }} className="w-full p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] text-center hover:bg-white/[0.04] transition-colors">
-                      <p className="text-white font-bold text-sm">Seguir sem música</p><p className="text-[10px] text-[#F3E8FF]/20 mt-0.5">Gratuito</p>
-                    </button>
-                  </>)}
+
+                  {resolvedTrack && plan === 'FREE' && (
+                    <div className="relative p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                      <div className="flex items-center gap-3 blur-[4px] select-none pointer-events-none"><span className="text-2xl">🎵</span><div><p className="text-white font-bold text-sm">{resolvedTrack.name}</p><p className="text-[#F3E8FF]/40 text-xs">{resolvedTrack.artist}</p></div></div>
+                      <button onClick={onUpgrade} className="absolute inset-0 flex items-center justify-center bg-[#0D0221]/30"><span className="bg-gradient-to-r from-purple-400 to-pink-500 text-white text-xs font-black py-1.5 px-4 rounded-full shadow-md">🔓 Liberar música</span></button>
+                    </div>
+                  )}
+
+                  {/* Seguir sem música — sempre disponível */}
+                  <button onClick={() => { setSelectedTrack(null); generateVeredict() }} className="w-full p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] text-center hover:bg-white/[0.04] transition-colors">
+                    <p className="text-white font-bold text-sm">Seguir sem música</p><p className="text-[10px] text-[#F3E8FF]/20 mt-0.5">Gratuito</p>
+                  </button>
                 </div>
               )}
               <div className="flex justify-center mt-6">
@@ -234,12 +274,8 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
               )}
               {veredict && showCard && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                  <div className="text-center mb-4">
-                    <span className="inline-block px-4 py-1.5 rounded-full bg-purple-500/15 text-purple-300 text-sm font-bold mb-3">{veredict.veredict_badge}</span>
-                    <p className="text-[#F3E8FF]/60 text-sm leading-relaxed max-w-md mx-auto">{veredict.veredict_text}</p>
-                  </div>
-                  <div className="flex justify-center mb-6"><div className="w-72 rounded-2xl overflow-hidden border border-white/[0.08] shadow-[0_0_40px_rgba(168,85,247,0.1)]"><VeredictCard veredict={veredict} /></div></div>
-                  <div className="flex justify-center gap-3">
+                  <VeredictCard veredict={veredict} />
+                  <div className="flex justify-center gap-3 mt-6">
                     <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleShare} className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-bold py-3 px-6 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)] text-sm">📷 Compartilhar</motion.button>
                     <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handleDownload} className="flex items-center gap-2 bg-white/[0.05] hover:bg-white/[0.1] text-white font-bold py-3 px-6 rounded-2xl border border-white/[0.08] text-sm">⬇️ Baixar</motion.button>
                   </div>
