@@ -271,7 +271,7 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { message, mode, blockedTopics, sessionId, undo, requestVeredict } = await req.json()
+  const { message, mode, blockedTopics, sessionId, undo, requestVeredict, frameType, baseImageUrl, track } = await req.json()
   const blocked = blockedTopics || []
 
   if (!message || message === '__START__') {
@@ -328,11 +328,15 @@ export async function POST(req: Request) {
     const { data: saved } = await supabase.from('veredits').insert({
       user_id: user.id, mode: s.mode, veredict_text: veredict.veredict_text, veredict_badge: veredict.veredict_badge,
       tags: veredict.tags, niche: veredict.niche, niche_colors: veredict.niche_colors, profession_label: veredict.profession_label, tips: veredict.tips,
+      frame_type: frameType || 'cinza', base_image_url: baseImageUrl || null,
+      music_track: track || veredict.music_track || null,
     }).select().single()
+    // marca geração pro gate temporal
+    await supabase.from('profiles').update({ last_generation_at: new Date().toISOString() }).eq('id', user.id)
     const vmsg = `🏆 *VEREDITO*\n\n${veredict.veredict_text}\n\n📛 ${veredict.veredict_badge || ''}`
     msgs.push({ role: 'claudemiro', content: vmsg, veredict: true })
     await supabase.from('chat_sessions').update({ phase: 'done', status: 'completed', messages: msgs }).eq('id', sessionId)
-    return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id }, veredictId: saved?.id, messages: msgs })
+    return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, messages: msgs })
   }
 
   const { data: s } = await supabase.from('chat_sessions').select('*')
@@ -358,13 +362,17 @@ export async function POST(req: Request) {
   const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
   const reasoning = safeParse(reasoningJson)
 
-  if (reasoning.category === 'veredito') {
-    const parsed: any = { comment: 'Já tenho uma opinião formada sobre você.', question: 'Quer ver?', options: ['Gerar veredito', 'Continuar'] }
-    msgs.push({ role: 'claudemiro', content: '', parsed, reasoning })
-    const newAsked = [...asked, 'veredito']
-    const newAskedQuestions = [...askedQuestions, 'Quer ver?']
-    await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions } }).eq('id', s.id)
-    return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: true, sessionId: s.id })
+  // Fim do chat: limite atingido ou reasoning pediu veredito.
+  // Mostra a bolha "opinião formada" UMA vez; o frontend exibe a barra de ações.
+  if (reasoning.category === 'veredito' || asked.length >= MAX_INTERACTIONS) {
+    const lastMsg = msgs[msgs.length - 1]
+    if (!lastMsg?.parsed?.isVeredictOffer) {
+      const parsed: any = { comment: 'Já tenho uma opinião formada sobre você. 🔮', question: '', isVeredictOffer: true }
+      msgs.push({ role: 'claudemiro', content: '', parsed, reasoning })
+      await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data } }).eq('id', s.id)
+      return NextResponse.json({ type: 'reply', parsed, interactionCount: asked.length, suggestVeredict: true, sessionId: s.id })
+    }
+    return NextResponse.json({ type: 'noop', interactionCount: asked.length, suggestVeredict: true, sessionId: s.id })
   }
 
   const dialogTemp = mode === 'engracado' ? 0.65 : mode === 'profissional' ? 0.5 : 0.7

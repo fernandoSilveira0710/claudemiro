@@ -48,10 +48,9 @@ export async function GET() {
     }
 
     if (url) {
-      // Proxy Instagram images
-      const finalUrl = conn.platform === 'instagram'
-        ? `/api/proxy?url=${encodeURIComponent(url)}`
-        : url
+      // Instagram e TikTok bloqueiam hotlink → passam pelo proxy
+      const needsProxy = conn.platform === 'instagram' || conn.platform === 'tiktok'
+      const finalUrl = needsProxy ? `/api/proxy?url=${encodeURIComponent(url)}` : url
 
       images.push({
         platform: conn.platform,
@@ -61,5 +60,14 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ images })
+  // Música top do Spotify (pra sugestão da IA no wizard)
+  let topTrack: { name: string; artist: string } | null = null
+  const spotifyConn = connections.find(c => c.platform === 'spotify')
+  if (spotifyConn?.raw_data) {
+    const rd = spotifyConn.raw_data as any
+    const t = rd?.topTracks?.[0] || rd?.top_tracks?.[0]
+    if (t) topTrack = { name: t.name, artist: t.artist || t.artists?.[0]?.name || '' }
+  }
+
+  return NextResponse.json({ images, topTrack })
 }
