@@ -108,7 +108,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             href="/"
             className="inline-block bg-white text-gray-900 font-bold px-8 py-4 rounded-2xl text-lg"
           >
-            Descobrir meu Claudemiro → R$2,90
+            Descobrir meu Claudemiro → a partir de R$3,99
           </a>
         </div>
       </div>

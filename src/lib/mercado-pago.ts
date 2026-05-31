@@ -35,7 +35,7 @@ export async function createProSubscription(userEmail: string) {
           description: 'Vereditos ilimitados + página pública + desafios semanais',
           quantity: 1,
           currency_id: 'BRL',
-          unit_price: 9.9,
+          unit_price: 19.99,
         },
       ],
       payer: { email: userEmail },

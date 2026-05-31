@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
 import { ChatProgressBar } from '@/components/chat/progress-bar'
 import { ChatAtmosphere } from '@/components/chat/chat-atmosphere'
+import { FinalWizard } from '@/components/chat/final-wizard'
+import { PlanModal } from '@/components/plan-modal'
 
 type Parsed = { comment: string; question: string; options: string[] | null }
 type Message = { role: 'claudemiro' | 'user'; content: string; parsed?: Parsed; veredict?: boolean }
@@ -40,6 +42,10 @@ export function ChatInterface() {
   const [suggestVeredict, setSuggestVeredict] = useState(false)
   const [interactionCount, setInteractionCount] = useState(0)
   const [showFreeInput, setShowFreeInput] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
+  const [wizardImages, setWizardImages] = useState<any[]>([])
+  const [userPlan, setUserPlan] = useState<'PRO' | 'FLEX' | 'FREE'>('FREE')
+  const [showPlanModal, setShowPlanModal] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); setShowFreeInput(false) }, [messages])
@@ -82,6 +88,30 @@ export function ChatInterface() {
     const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ undo: true, sessionId }) })
     const data = await res.json()
     if (data.type === 'undo') { setMessages(data.messages); setInteractionCount(data.interactionCount) }
+    setLoading(false)
+  }
+
+  const openWizard = async () => {
+    if (!sessionId || loading) return
+    setLoading(true)
+    try {
+      // Busca imagens das redes + plano
+      const [imgRes, profileRes] = await Promise.all([
+        fetch('/api/user/social-images'),
+        fetch('/api/user/profile'),
+      ])
+      const imgData = await imgRes.json()
+      const profileData = await profileRes.json()
+      setWizardImages(imgData.images || [])
+      setUserPlan(profileData.plan || 'FREE')
+      setShowWizard(true)
+    } catch (err) {
+      console.error('Erro ao abrir wizard:', err)
+      // Fallback: chama o veredict antigo
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestVeredict: true, sessionId }) })
+      const data = await res.json()
+      if (data.type === 'veredict') { setMessages(data.messages); setVeredictData(data.veredict); setVeredictId(data.veredictId); setSuggestVeredict(false) }
+    }
     setLoading(false)
   }
 
@@ -183,7 +213,7 @@ export function ChatInterface() {
         <a href="/" className="text-sm font-bold text-[#F3E8FF]/30 hover:text-white" style={{ fontFamily: "'DM Sans', sans-serif" }}>← CLAUDEMIRO</a>
         <div className="flex items-center gap-2">
           {messages.length >= 2 && !loading && !isDone && <button onClick={handleUndo} className="text-[10px] bg-white/[0.04] hover:bg-white/[0.08] text-[#F3E8FF]/40 px-2.5 py-1 rounded-full">↩ Desfazer</button>}
-          {suggestVeredict && <button onClick={requestVeredict} className="text-[10px] bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 px-2.5 py-1 rounded-full font-medium">🏆 Gerar Veredito</button>}
+          {suggestVeredict && <button onClick={openWizard} className="text-[10px] bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 px-2.5 py-1 rounded-full font-medium">🏆 Gerar Veredito</button>}
           <span className="text-[10px] bg-green-500/15 text-green-400 px-2 py-0.5 rounded-full font-medium">online</span>
         </div>
       </header>
@@ -221,7 +251,27 @@ export function ChatInterface() {
       </div>
 
       {/* Input ou Botões */}
-      {!isDone && !loading && hasOptions && !showFreeInput ? (
+      {!isDone && suggestVeredict ? (
+        /* Barra de fim de chat: Refazer | Upgrade | Gerar veredito */
+        <div className="border-t border-white/[0.06] p-4 bg-[#0D0221]/90 backdrop-blur z-10 relative">
+          <div className="max-w-2xl mx-auto flex gap-3 justify-center">
+            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-[#F3E8FF]/60 hover:text-white font-medium py-3 px-4 rounded-2xl border border-white/[0.08] text-xs transition-colors">
+              🔄 Refazer
+            </motion.button>
+            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => setShowPlanModal(true)}
+              className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-medium py-3 px-4 rounded-2xl border border-amber-500/20 text-xs transition-colors">
+              💰
+            </motion.button>
+            <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={openWizard}
+              className="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-5 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)] text-xs">
+              🏆 Gerar veredito
+            </motion.button>
+          </div>
+        </div>
+      ) : !isDone && !loading && hasOptions && !showFreeInput ? (
         <div className="border-t border-white/[0.06] p-4 bg-[#0D0221]/90 backdrop-blur z-10 relative"><div className="max-w-2xl mx-auto">
           <p className="text-[10px] text-[#F3E8FF]/20 font-mono mb-3 text-center tracking-wider">ESCOLHA UMA OPÇÃO</p>
           <div className="grid grid-cols-2 gap-2.5">
@@ -243,7 +293,41 @@ export function ChatInterface() {
           <Input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !loading && sendMessage()} placeholder="Manda a real..." className="bg-white/[0.03] border-white/[0.06] text-white rounded-2xl h-12 text-sm placeholder:text-[#F3E8FF]/20" disabled={loading} />
           <button onClick={() => sendMessage()} disabled={!input.trim() || loading} className="bg-purple-500 hover:bg-purple-600 disabled:bg-white/[0.03] text-white font-bold rounded-2xl h-12 w-12 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.2)]">↑</button>
         </div></div>
+      ) : isDone ? (
+        /* Barra pós-veredict: Refazer | Upgrade */
+        <div className="border-t border-white/[0.06] p-4 bg-[#0D0221]/90 backdrop-blur z-10 relative">
+          <div className="max-w-2xl mx-auto flex gap-3 justify-center">
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => { setVeredictData(null); setVeredictId(null); setSuggestVeredict(true); }}
+              className="flex items-center gap-1.5 bg-white/[0.04] hover:bg-white/[0.08] text-[#F3E8FF]/60 hover:text-white font-medium py-3 px-5 rounded-2xl border border-white/[0.08] text-sm transition-colors"
+            >
+              🔄 Refazer
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => setShowPlanModal(true)}
+              className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-medium py-3 px-5 rounded-2xl border border-amber-500/20 text-sm transition-colors"
+            >
+              💰 Upgrade
+            </motion.button>
+          </div>
+        </div>
       ) : null}
+
+      {/* ─── WIZARD ──────────────────────────────── */}
+      {showWizard && (
+        <FinalWizard
+          sessionId={sessionId!}
+          plan={userPlan}
+          socialImages={wizardImages}
+          aiTrack={null}
+          onClose={() => setShowWizard(false)}
+        />
+      )}
+
+      {/* ─── PLAN MODAL ──────────────────────────── */}
+      <PlanModal isOpen={showPlanModal} onClose={() => setShowPlanModal(false)} />
     </div>
   )
 }
