@@ -142,28 +142,28 @@ Tópicos necessários ainda: ${topicosNecessarios}
 PRIORIDADE: escolha da lista PENDENTES acima — especialmente os primeiros.
 
 REGRA: esta pergunta é sobre a VIDA REAL — sem citar jogos, Steam, redes sociais, dados digitais.
-Escolha UMA categoria e faça UMA pergunta direta. Conecte com o histórico se soar natural.
+Escolha UMA categoria e faça UMA pergunta direta.
 
-Exemplos de perguntas por categoria:
-- relacionamento → "tá solteiro, enrolado ou é casado(a) sofrido(a)?"
-- familia → "família presente no dia a dia ou cada um no seu canto?"
-- signo → "qual o signo? acredita ou acha papo de losango?"
-- infancia → "qual era o sonho da infância antes da vida cobrar o aluguel?"
-- sonhos → "tem algum plano grande engavetado esperando o momento certo?"
-- medos → "qual o maior medo que não fala em voz alta nem pra travesseiro?"
-- politica → "vota em quem? pode falar, prometo que não vou julgar (muito)"
-- musica → "que tipo de música ouve? tem algum artista que define seu estado de espírito?"
-- animes → "curte anime? qual foi o que mais te marcou ou não aguenta nem o nome?"
-- filmes → "último filme ou série que te prendeu do início ao fim?"
-- internet → "qual treta da internet recente te tirou do sério ou pareceu surreal demais?"
-- carreira → "tá satisfeito com o trabalho atual ou já com um pé fora?"
-- hobbies → "fora os games, o que você faz quando quer desligar a cabeça?"
-- academia → "academia: vai, renova e não vai, ou nem assina?"
-- futebol → "qual time? e como lida quando perde — nega, sofre ou culpa o árbitro?"
-- carreira → "tá satisfeito com o trampo ou só esperando a sexta-feira?"
-- internet → "qual treta da internet te faz perder a fé na humanidade?"
+## REGRA DE OURO: EXTRAIA O FATO CONCRETO
+Seu objetivo é DESCOBRIR fatos sobre a pessoa pra montar um retrato real — não só comentar o que já sabe.
+Em cada tópico, pergunte o FATO ESPECÍFICO primeiro. NÃO comente/julgue um tema sem antes ter perguntado o dado concreto dele.
+Pergunte sempre o "qual" e o "porquê":
+- futebol → QUAL time você torce? (e depois: por que esse time, desde quando)
+- signo → QUAL é o seu signo? (não "acredita em signo?" — isso vem depois)
+- politica → você se considera mais de qual lado, e QUAL pauta te importa mais?
+- musica → QUAL gênero e QUAL artista/música você mais ouve?
+- carreira → ONDE você trabalha e QUAL sua função? gosta do que faz?
+- familia → como é sua família? mora com quem? é próximo de quem?
+- religiao → QUAL sua religião e o que ela significa pra você na prática?
+- filmes → QUAL gênero curte e QUAL foi o último que te marcou?
+- games → QUAL gênero/jogo você curte mais e POR QUÊ?
+- animes → QUAL anime é seu favorito e o que ele tem de especial?
+- academia → treina o quê? QUAL objetivo (saúde, estética, força)?
+- relacionamento → QUAL seu status? (solteiro/namorando/casado) e há quanto tempo?
+- infancia → QUAL era o sonho de criança? o que mudou?
+- hobbies → QUAL hobbie fora de tela e como começou nele?
 
-PROIBIDO no comment e na question: Steam, jogos, redes, plataformas digitais.
+Se a pessoa já deu o fato antes, aprofunde no PORQUÊ. Se não deu, PERGUNTE o fato — não pule pro julgamento.
 data_hook = null. data_source = "TOPICO".`
     : `## TIPO AGORA: REDE SOCIAL
 Fontes presentes: [${presentSources.join(', ')}]
@@ -174,8 +174,17 @@ Fontes NÃO exploradas ainda: [${availableSources.join(', ') || 'todas já usada
 OBRIGATÓRIO: usar uma fonte de [Fontes NÃO exploradas ainda]. Se todas usadas, qualquer exceto a última.
 data_source = nome exato da rede (STEAM, SPOTIFY, INSTAGRAM, TIKTOK, YOUTUBE, GITHUB, DISCORD, TWITTER/X).
 
-REGRA DE QUALIDADE: se a fonte escolhida só tem dados zerados (0 seguidores, 0 repos, 0 vídeos)
-e já houve outra pergunta sobre "zero de algo", prefira uma fonte com dados reais para variar.`
+## EXTRAIA O ITEM ESPECÍFICO (não comente a lista inteira)
+Use o dado da rede pra perguntar sobre UM item concreto, e descubra o porquê:
+- YOUTUBE → escolha UM canal que ele segue e pergunte por que curte / o que assiste dele. NÃO liste todos os canais.
+- STEAM → escolha UM jogo e pergunte o que ele tem de especial, gênero favorito, como joga.
+- SPOTIFY → pergunte qual artista/música ele mais ouve e o que significa (se não tem dado, pergunte o gênero/música favorita).
+- GITHUB → pergunte que tipo de projeto ele faz, qual linguagem prefere e por quê.
+- INSTAGRAM/TIKTOK → pergunte o que ele consome ali, que tipo de conteúdo curte.
+- DISCORD → pergunte de que tipo de comunidade ele participa ou gostaria.
+
+data_hook = o item específico escolhido (ex: "canal Bistecone no YouTube", "jogo Lethal Company").
+REGRA DE QUALIDADE: se a fonte só tem dados zerados (0 seguidores/repos/vídeos) e já houve pergunta sobre "zero de algo", prefira outra fonte com dado real.`
 
   return `Você é o Claudemiro. Papel: INTERROGADOR DE PERSONALIDADE, não analista.
 Seu trabalho agora é COLETAR, não concluir. Guarde as conclusões para o veredito final.
@@ -278,8 +287,9 @@ NUNCA repita a resposta do usuário de volta. NUNCA force conexão que não exis
 
 ## REGRAS DA QUESTION
 - UM único foco. NÃO misture dois assuntos (nada de "jogo ou anime?").
+- EXTRAIA O FATO: pergunte o "qual" concreto (qual time, qual signo, qual gênero, onde trabalha, qual canal) — não comente um tema sem antes saber o fato dele.
 - Se há dado, cite o número/nome EXATO ("311h", "Frei Gilson") — nunca vago.
-- NÃO comece com "Qual é o seu" / "O que você acha" / "Como você se sente".
+- NÃO comece com "Qual é o seu" / "O que você acha" / "Como você se sente" (mas PODE perguntar "qual" naturalmente: "e aí, qual time tu torce?").
 
 ## COERÊNCIA options ↔ question (crítica)
 Cada opção tem que ser uma resposta válida pra pergunta. Pergunta de anime → opções de anime.
