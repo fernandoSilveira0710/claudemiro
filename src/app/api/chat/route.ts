@@ -263,13 +263,19 @@ Gere APENAS este JSON:
   // ── CONVERSA NORMAL ──
   return `Você é o Claudemiro. Tom FIXO desta sessão: ${toneVoice[mode] || toneVoice.casual}
 
+## REGRA ABSOLUTA — UMA PERGUNTA SÓ (a mais importante)
+A conversa tem 20 turnos, então NÃO atropele: faça UMA ÚNICA pergunta por vez.
+- O comment é SÓ reação/reconhecimento. O comment NUNCA contém pergunta. NÃO pode ter "?", não pode ter "ou", não pode oferecer escolha.
+- TODA a pergunta vai na "question", e é UMA só (um único "?").
+- ERRADO (o que você fez e não pode repetir): comment="Cê guarda os projetos pra você ou tem medo de code review?" + question="tá solteiro ou namorando?" → SÃO DUAS PERGUNTAS. PROIBIDO.
+- Se você quer saber duas coisas, escolha UMA agora e guarde a outra pro próximo turno. Há turnos de sobra.
+
 ## COMO DEVE SOAR — UM DIÁLOGO DE VERDADE
-Pensa numa conversa real entre amigos. A pessoa responde algo, você reage rapidinho e emenda a próxima pergunta de forma natural.
-O comment é um reconhecimento BREVE e ORIGINAL da resposta específica — você inventa na hora, reagindo ao que ELA disse.
-NUNCA use reconhecimentos genéricos vazios como "hmm saquei", "boa kkk", "entendi kkk", "interessante isso" — esses são preguiçosos e repetitivos. PROIBIDO.
-Em vez disso, reaja ao CONTEÚDO: se a pessoa disse que torce pro Palmeiras, o reconhecimento é sobre isso; se disse que programa mas não expõe, comente ISSO.
-Cada comment deve ser impossível de colar em outra resposta. Se for genérico, está errado.
-NUNCA repita a resposta do usuário de volta. NUNCA force conexão que não existe.
+Pensa numa conversa real entre amigos. A pessoa responde algo, você reage rapidinho (comment, SEM pergunta) e faz a próxima pergunta (question, UMA só).
+O comment é um reconhecimento BREVE e ORIGINAL da resposta específica — você inventa na hora, reagindo ao que ELA disse, em no máximo uma frase curta.
+NUNCA use reconhecimentos genéricos vazios como "hmm saquei", "boa kkk", "entendi kkk", "interessante isso" — PROIBIDO.
+Reaja ao CONTEÚDO: se disse que torce pro Palmeiras, o reconhecimento é sobre isso.
+Cada comment deve ser impossível de colar em outra resposta. NUNCA repita a resposta do usuário de volta. NUNCA force conexão que não existe.
 
 ## A ÚLTIMA RESPOSTA DO USUÁRIO
 "${lastUserLine}"
@@ -280,10 +286,9 @@ NUNCA repita a resposta do usuário de volta. NUNCA force conexão que não exis
 - Ângulo: ${reasoning.angle || ''}
 - Tom nesta resposta: ${reasoning.tone_note || ''}
 
-## ESTRUTURA DA SUA RESPOSTA (comment + question juntos formam UMA fala fluida)
-- comment: reconhecimento curto e ORIGINAL que reage ao conteúdo específico da resposta. Inventado na hora, nunca de uma lista fixa.
-- question: a pergunta seguinte, que pode começar com um gancho leve OU ir direta. Use o dado real exato se houver.
-- Juntos devem soar como UMA pessoa falando, não dois blocos colados.
+## ESTRUTURA DA SUA RESPOSTA
+- comment: reconhecimento curto, SEM pergunta, SEM "?". Reage ao conteúdo da resposta.
+- question: UMA pergunta só (um único "?"), foco único. Use o dado real exato se houver.
 
 ## REGRAS DA QUESTION
 - UM único foco. NÃO misture dois assuntos numa pergunta.
@@ -305,16 +310,17 @@ ${history || 'Início da conversa.'}
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "reconhecimento curto e ORIGINAL, reagindo ao conteúdo específico da resposta — nunca genérico, nunca de lista fixa",
-  "question": "a próxima pergunta, fluida, foco único, citando dado exato se houver",
+  "comment": "reconhecimento curto SEM pergunta e SEM '?', reagindo ao conteúdo específico da resposta",
+  "question": "UMA pergunta só (um único '?'), foco único, citando dado exato se houver",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
 REGRAS FINAIS:
-- comment ORIGINAL toda vez. PROIBIDO "hmm saquei", "boa kkk", "entendi kkk", "interessante" e qualquer reconhecimento genérico vazio.
+- UMA pergunta no total. O comment NÃO pergunta nada (sem "?"). Toda pergunta vai na question.
+- comment ORIGINAL toda vez. PROIBIDO "hmm saquei", "boa kkk", "entendi kkk", "interessante" e genéricos.
 - comment NUNCA repete/parafraseia a resposta. NUNCA cita dados de rede. NUNCA força conexão estranha.
-- olhe o HISTÓRICO: se já usou uma abertura de comment parecida, use OUTRA completamente diferente.
-- options coerentes com a question. Se a pergunta pede DUAS coisas, options = null. Última SEMPRE "Outro 🖊️" se tiver opções.
+- olhe o HISTÓRICO: se já usou uma abertura de comment parecida, use OUTRA diferente.
+- options coerentes com a question, mesmo domínio. Se a pergunta pede DUAS coisas, options = null. Última SEMPRE "Outro 🖊️" se tiver opções.
 - PROIBIDO repetir assunto das últimas 2 respostas.`
 }
 
@@ -338,7 +344,7 @@ export async function POST(req: Request) {
     const reasoning = safeParse(reasoningJson)
     const dialogPrompt = buildDialogPrompt(dataStr, '', mode, reasoning)
     const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
-    const parsed = safeParse(dialogJson)
+    const parsed = sanitizeParsed(safeParse(dialogJson))
     const { data: session } = await supabase.from('chat_sessions').insert({
       user_id: user.id, mode, phase: 'chat', status: 'active',
       messages: [{ role: 'claudemiro', content: dialogJson, parsed, reasoning }],
@@ -365,7 +371,7 @@ export async function POST(req: Request) {
     const reasoningJson = await chatCompletion([{ role: 'user', content: buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, prevQuestions, prevSources, asked.slice(-3)) }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
     const reasoning = safeParse(reasoningJson)
     const dialogJson = await chatCompletion([{ role: 'user', content: buildDialogPrompt(dataStr, hist, s.mode, reasoning) }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
-    const parsed = safeParse(dialogJson)
+    const parsed = sanitizeParsed(safeParse(dialogJson))
     const restored = [...msgs, { role: 'claudemiro', content: dialogJson, parsed, reasoning }]
     await supabase.from('chat_sessions').update({
       messages: restored, phase_data: { ...s.phase_data, askedCategories: [...asked, reasoning.category].filter(Boolean), askedQuestions: [...prevQuestions, parsed.question].filter(Boolean), usedDataSources: [...prevSources, normalizeDataSource(reasoning.data_source)].filter(Boolean) }
@@ -433,7 +439,7 @@ export async function POST(req: Request) {
   const dialogTemp = mode === 'engracado' ? 0.65 : mode === 'profissional' ? 0.5 : 0.7
   const dialogPrompt = buildDialogPrompt(dataStr, hist, s.mode, reasoning)
   const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: dialogTemp, maxTokens: 400, json: true })
-  const parsed = safeParse(dialogJson)
+  const parsed = sanitizeParsed(safeParse(dialogJson))
   msgs.push({ role: 'claudemiro', content: dialogJson, parsed, reasoning })
   const newAsked = [...asked, reasoning.category].filter(Boolean)
   const newAskedQuestions = [...askedQuestions, parsed.question].filter(Boolean)
@@ -475,4 +481,20 @@ function normalizeDataSource(raw: string | undefined | null): string | null {
 
 function safeParse(json: string): any {
   try { return JSON.parse(json.replace(/```json\s*|\s*```/g, '').trim()) } catch { return { category: 'hobbies', connection: '', tone_note: '', comment: '', question: json.slice(0, 200), options: null } }
+}
+
+// Salvaguarda: garante que o comment não contenha pergunta (uma pergunta só, na question).
+function sanitizeParsed(parsed: any): any {
+  if (!parsed || typeof parsed !== 'object') return parsed
+  let comment = (parsed.comment || '').toString().trim()
+  // Se o comment tem "?", corta tudo a partir da última frase que vira pergunta.
+  if (comment.includes('?')) {
+    // mantém só o trecho ANTES da primeira pergunta
+    const idx = comment.indexOf('?')
+    // recua até o começo da frase que contém o "?"
+    const before = comment.slice(0, idx)
+    const lastBreak = Math.max(before.lastIndexOf('. '), before.lastIndexOf('! '), before.lastIndexOf(', '))
+    comment = (lastBreak > 0 ? before.slice(0, lastBreak + 1) : '').trim()
+  }
+  return { ...parsed, comment }
 }
