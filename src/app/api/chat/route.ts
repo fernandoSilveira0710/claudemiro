@@ -239,11 +239,12 @@ ${reasoning.data_hook || '(sem dado — faça pergunta de abertura leve)'}
 
 ## REGRAS
 - comment: deixe VAZIO ("").
-- question: UMA pergunta curta e direta. Se há dado real acima, CITE ELE LITERALMENTE com o número exato (ex: "311h em Lethal Company" — nunca "centenas de horas" ou "esse tipo de jogo"). Concisa, no tom certo.
+- question: UMA pergunta curta, de UM único foco. Se há dado real acima, CITE ELE LITERALMENTE com o número exato (ex: "311h em Lethal Company" — nunca "centenas de horas"). NÃO misture dois assuntos.
+- options: DEVEM ser respostas válidas pra pergunta. Se a pergunta é sobre jogo, opções de jogo. Se não der pra fazer opções coerentes, use null.
 - NÃO comece com "Qual é o seu" / "O que você acha".
 
 Gere APENAS este JSON:
-{"comment": "", "question": "pergunta de abertura citando o dado real", "options": ["A", "B", "Outro 🖊️"] ou null}`
+{"comment": "", "question": "pergunta de abertura de foco único citando o dado real", "options": ["A", "B", "Outro 🖊️"] ou null}`
   }
 
   // ── CONVERSA NORMAL ──
@@ -267,6 +268,14 @@ Seja CONCISO: uma frase curta basta.
 ## REGRA DA QUESTION
 Use o "dado pontual" e o "ângulo". Se há dado, CITE O NÚMERO/NOME EXATO (ex: "311h", "32 repos") — nunca vago como "centenas de horas" ou "vários projetos".
 Cita no máximo UM dado. NÃO comece com "Qual é o seu" / "O que você acha" / "Como você se sente".
+A pergunta deve ter UM ÚNICO foco. NÃO misture dois assuntos numa pergunta só (ex: NÃO faça "qual jogo ou anim te marcou?" — escolhe UM: ou jogo, ou anime).
+
+## REGRA DE COERÊNCIA (options ↔ question) — CRÍTICA
+As options DEVEM ser respostas válidas e diretas para a question.
+Se a pergunta é "qual anime te marcou?", as opções são animes. Se é "joga solo ou em grupo?", as opções são "Solo / Em grupo".
+NUNCA gere opções de um assunto diferente do que a pergunta perguntou.
+Teste mental: leia a pergunta, leia cada opção — cada opção responde a pergunta? Se não, refaça.
+Se não conseguir gerar opções coerentes, use options: null (resposta livre).
 
 ## HISTÓRICO RECENTE (para não repetir tema nem estrutura de frase)
 ${history || 'Início da conversa.'}
@@ -275,12 +284,13 @@ ${history || 'Início da conversa.'}
 Gere APENAS este JSON (sem texto fora):
 {
   "comment": "reação curta (máx 12 palavras) só à última resposta. Sem dados de rede. Única.",
-  "question": "pergunta da categoria, citando o dado real exato. Independente do comment.",
+  "question": "pergunta de UM único foco, citando o dado real exato. Independente do comment.",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
 REGRAS FINAIS:
 - comment SEM dados de rede. question CITA o dado exato (número/nome), nunca vago.
+- options SEMPRE coerentes com a question — cada opção responde a pergunta. Senão, null.
 - NUNCA repita uma estrutura de comentário já usada no histórico.
 - options: 2-4 curtas e específicas, ou null. Última SEMPRE "Outro 🖊️" se tiver opções.
 - PROIBIDO repetir assunto das últimas 2 respostas mesmo com categoria diferente.`
