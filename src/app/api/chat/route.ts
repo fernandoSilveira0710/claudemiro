@@ -292,8 +292,10 @@ NUNCA repita a resposta do usuário de volta. NUNCA force conexão que não exis
 - NÃO comece com "Qual é o seu" / "O que você acha" / "Como você se sente" (mas PODE perguntar "qual" naturalmente: "e aí, qual time tu torce?").
 
 ## COERÊNCIA options ↔ question (crítica)
-Cada opção tem que ser uma resposta válida pra pergunta. Pergunta de anime → opções de anime.
-Se não der pra fazer opções coerentes, use null (resposta livre).
+Cada opção tem que ser uma resposta válida e COMPLETA pra pergunta. Pergunta de anime → opções de anime.
+REGRA DAS DUAS VARIÁVEIS: se a pergunta pede DUAS informações (ex: "qual gênero E qual artista?", "onde trabalha E qual função?", "qual time E desde quando?"), use options: null — porque botão não consegue responder duas coisas. Deixa só o input livre.
+Só ofereça options quando a pergunta tem UMA resposta fechada e simples (ex: "qual time?" → times; "solteiro ou casado?" → status).
+Se uma opção sozinha não responde a pergunta inteira, use null.
 
 ## HISTÓRICO RECENTE (não repita tema nem estrutura de frase já usada)
 ${history || 'Início da conversa.'}
@@ -310,7 +312,7 @@ REGRAS FINAIS:
 - comment ORIGINAL toda vez. PROIBIDO "hmm saquei", "boa kkk", "entendi kkk", "interessante" e qualquer reconhecimento genérico vazio.
 - comment NUNCA repete/parafraseia a resposta. NUNCA cita dados de rede. NUNCA força conexão estranha.
 - olhe o HISTÓRICO: se já usou uma abertura de comment parecida, use OUTRA completamente diferente.
-- options coerentes com a question, senão null. Última SEMPRE "Outro 🖊️" se tiver opções.
+- options coerentes com a question. Se a pergunta pede DUAS coisas, options = null. Última SEMPRE "Outro 🖊️" se tiver opções.
 - PROIBIDO repetir assunto das últimas 2 respostas.`
 }
 
