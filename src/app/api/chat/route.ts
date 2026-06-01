@@ -25,9 +25,10 @@ const SELECTABLE_TOPIC_IDS = ['games', 'animes', 'filmes', 'futebol', 'musica', 
 // Meta: cobrir pelo menos 65% dos tópicos liberados (não bloqueados)
 const TOPIC_COVERAGE_TARGET = 0.65
 
-// 20 perguntas: ~11 de redes + ~9 de tópicos (garantir cobertura dos liberados)
-const REDES_QUOTA = 11
-const TOPICOS_QUOTA = 9
+// 20 perguntas: até ~8 de redes (há ~7-8 redes possíveis) + resto de tópicos pessoais.
+// Quando as redes esgotam, o sistema migra pra tópicos automaticamente.
+const REDES_QUOTA = 8
+const TOPICOS_QUOTA = 12
 
 function digest(data: any): string {
   const L: string[] = []
@@ -93,9 +94,12 @@ function buildReasoningPrompt(
   const topicosFeitos = usedDataSources.filter(s => s === 'TOPICO').length
   const totalFeitas = redesFeitas + topicosFeitos
 
-  // Proporção 2:1 — a cada 2 redes, 1 tópico obrigatório
+  // Proporção 2:1 — a cada 2 redes, 1 tópico obrigatório.
+  // Também força tópico se TODAS as redes presentes já foram exploradas (não reusar rede).
+  const todasRedesUsadas = availableSources.length === 0 && presentSources.length > 0
   const deveUsarTopico =
     (redesFeitas >= REDES_QUOTA) ||
+    todasRedesUsadas ||
     (topicosFeitos < TOPICOS_QUOTA && redesFeitas >= (topicosFeitos + 1) * 2)
 
   // Tópicos da tela de seleção que o usuário NÃO bloqueou
@@ -251,10 +255,12 @@ Gere APENAS este JSON:
   return `Você é o Claudemiro. Tom FIXO desta sessão: ${toneVoice[mode] || toneVoice.casual}
 
 ## COMO DEVE SOAR — UM DIÁLOGO DE VERDADE
-Pensa numa conversa real entre amigos. A pessoa responde algo, você reage rapidinho e emenda a próxima pergunta de forma natural — às vezes com um gancho ("hmm, falando nisso...", "entendi kkk, e me diz..."), às vezes só seguindo o papo.
-O comment é um RECONHECIMENTO BREVE da resposta — tipo "saquei", "boa", "entendi kkk", "interessante isso" — NÃO é repetir o que a pessoa disse nem analisar.
-NUNCA repita a resposta do usuário de volta pra ele (ex: se ele disse "caos com amigos", NÃO escreva "caos com amigos é o que une...").
-NUNCA force uma conexão que não existe (ex: "o que une games e missa?" é forçado e confuso — não faça).
+Pensa numa conversa real entre amigos. A pessoa responde algo, você reage rapidinho e emenda a próxima pergunta de forma natural.
+O comment é um reconhecimento BREVE e ORIGINAL da resposta específica — você inventa na hora, reagindo ao que ELA disse.
+NUNCA use reconhecimentos genéricos vazios como "hmm saquei", "boa kkk", "entendi kkk", "interessante isso" — esses são preguiçosos e repetitivos. PROIBIDO.
+Em vez disso, reaja ao CONTEÚDO: se a pessoa disse que torce pro Palmeiras, o reconhecimento é sobre isso; se disse que programa mas não expõe, comente ISSO.
+Cada comment deve ser impossível de colar em outra resposta. Se for genérico, está errado.
+NUNCA repita a resposta do usuário de volta. NUNCA force conexão que não existe.
 
 ## A ÚLTIMA RESPOSTA DO USUÁRIO
 "${lastUserLine}"
@@ -266,8 +272,8 @@ NUNCA force uma conexão que não existe (ex: "o que une games e missa?" é for�
 - Tom nesta resposta: ${reasoning.tone_note || ''}
 
 ## ESTRUTURA DA SUA RESPOSTA (comment + question juntos formam UMA fala fluida)
-- comment: 2 a 5 palavras de reconhecimento natural. Ex: "Boa kkk", "Saquei", "Entendi", "Interessante", "Hmm, faz sentido". Varie sempre, nunca repita.
-- question: a pergunta seguinte, que pode começar com um gancho leve ("e aí, ...", "me diz, ...", "falando nisso, ...") OU ir direta. Use o dado real exato se houver.
+- comment: reconhecimento curto e ORIGINAL que reage ao conteúdo específico da resposta. Inventado na hora, nunca de uma lista fixa.
+- question: a pergunta seguinte, que pode começar com um gancho leve OU ir direta. Use o dado real exato se houver.
 - Juntos devem soar como UMA pessoa falando, não dois blocos colados.
 
 ## REGRAS DA QUESTION
@@ -285,16 +291,16 @@ ${history || 'Início da conversa.'}
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "reconhecimento curto e natural (2-5 palavras), nunca repetindo a resposta do usuário",
+  "comment": "reconhecimento curto e ORIGINAL, reagindo ao conteúdo específico da resposta — nunca genérico, nunca de lista fixa",
   "question": "a próxima pergunta, fluida, foco único, citando dado exato se houver",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
 REGRAS FINAIS:
-- comment NUNCA repete/parafraseia a resposta do usuário. NUNCA cita dados de rede. NUNCA força conexão estranha.
-- comment + question devem soar como uma fala só, natural.
+- comment ORIGINAL toda vez. PROIBIDO "hmm saquei", "boa kkk", "entendi kkk", "interessante" e qualquer reconhecimento genérico vazio.
+- comment NUNCA repete/parafraseia a resposta. NUNCA cita dados de rede. NUNCA força conexão estranha.
+- olhe o HISTÓRICO: se já usou uma abertura de comment parecida, use OUTRA completamente diferente.
 - options coerentes com a question, senão null. Última SEMPRE "Outro 🖊️" se tiver opções.
-- NUNCA repita estrutura de comentário já usada no histórico.
 - PROIBIDO repetir assunto das últimas 2 respostas.`
 }
 
@@ -420,7 +426,9 @@ export async function POST(req: Request) {
   const newUsedSources = [...usedDataSources, normalizeDataSource(reasoning.data_source)].filter(Boolean)
   await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions, usedDataSources: newUsedSources } }).eq('id', s.id)
 
-  return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: newAsked.length >= MAX_INTERACTIONS, sessionId: s.id })
+  const hasQuestion = !!(parsed.question && parsed.question.trim())
+  const suggestNow = newAsked.length >= MAX_INTERACTIONS && !hasQuestion
+  return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: suggestNow, sessionId: s.id })
 }
 
 export async function GET() {
