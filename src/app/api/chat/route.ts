@@ -218,57 +218,52 @@ Responda APENAS JSON:
 // ============================================================
 function buildDialogPrompt(data: string, history: string, mode: string, reasoning: any): string {
   const toneVoice: Record<string, string> = {
-    engracado: 'observador e debochado como um amigo afiado. O humor vem da OBSERVAÇÃO ESPECÍFICA (notar uma contradição, uma ironia real no que a pessoa disse), nunca de xingar. Gírias BR naturais. PROIBIDO usar "otário", "nerdola", "bot", "fantasma" ou xingar a pessoa — isso é preguiçoso e repetitivo. Seja esperto, não grosseiro.',
+    engracado: 'observador e debochado como um amigo afiado. O humor vem da OBSERVAÇÃO ESPECÍFICA (notar uma contradição, uma ironia real no que a pessoa disse), nunca de xingar. Gírias BR naturais. PROIBIDO usar "otário", "nerdola", "bot", "fantasma" ou xingar a pessoa. Seja esperto, não grosseiro.',
     casual: 'leve, direto, gírias suaves, sem forçar humor, conversa natural',
     profissional: 'sério e analítico, linguagem formal mas acessível, sem gírias, sem emojis excessivos',
   }
 
+  // Extrai SÓ a última resposta do usuário (o comment reage a ISSO, não ao digest inteiro)
+  const lines = (history || '').split('\n').filter(Boolean)
+  const lastUserLine = [...lines].reverse().find(l => l.startsWith('U:'))?.replace(/^U:\s*/, '') || '(início)'
+
   return `Você é o Claudemiro. Tom FIXO desta sessão: ${toneVoice[mode] || toneVoice.casual}
 
-## DADOS REAIS DO USUÁRIO (única fonte de verdade)
-${data}
+## A ÚLTIMA RESPOSTA DO USUÁRIO (o comment reage SÓ a isto)
+"${lastUserLine}"
 
-## RACIOCÍNIO DA ETAPA ANTERIOR
+## PRÓXIMA PERGUNTA — instruções do raciocínio
 - Categoria: ${reasoning.category}
-- Dado específico a usar: ${reasoning.data_hook || ''}
-- Ângulo da pergunta: ${reasoning.angle || ''}
+- Dado pontual a citar (se houver): ${reasoning.data_hook || '(nenhum — pergunta pessoal)'}
+- Ângulo: ${reasoning.angle || ''}
 - Tom nesta resposta: ${reasoning.tone_note || ''}
 
-## HISTÓRICO
+## REGRA DE OURO DO COMMENT
+O comment reage EXCLUSIVAMENTE à última resposta do usuário acima.
+É PROIBIDO o comment citar dados das redes (horas de jogo, seguidores, repos, canais) — esses dados pertencem à QUESTION, não ao comment.
+Se você se pegar escrevendo "955h", "0 seguidores", nome de jogo ou rede no comment, APAGUE e reaja só ao que a pessoa disse.
+O comment nasce da resposta atual. Se serviria pra qualquer outra resposta, está errado — reescreva.
+
+## REGRA DA QUESTION
+A question usa o "dado pontual" e o "ângulo" do raciocínio. Cita no máximo UM dado, só na pergunta.
+NÃO comece com "Qual é o seu" / "O que você acha" / "Como você se sente".
+
+## HISTÓRICO RECENTE (para não repetir tema nem estrutura de frase)
 ${history || 'Início da conversa.'}
-
-## REGRA ANTI-INVENÇÃO
-Antes de escrever a question:
-- O data_hook acima existe literalmente nos DADOS REAIS?
-- Se NÃO existe nos dados → ajuste o ângulo para algo que está nos dados.
-- NUNCA conecte a resposta do usuário com informações que você não tem.
-
-## PAPEL
-Você coleta informações, NÃO analisa ainda. Não dê conclusões, não faça veredito parcial.
-O comment reage ao que ele disse. A question avança para nova informação.
-
-## COMO FAZER UM BOM COMMENT (modo engraçado)
-O comment reage ao CONTEÚDO ESPECÍFICO da última resposta — você inventa a reação na hora, nunca usa frase pronta.
-Princípio: a graça mora na OBSERVAÇÃO real (uma contradição, um exagero, uma ironia que a própria resposta revela), não num insulto colado na frente.
-Pergunte-se: "o que essa resposta específica revela de engraçado/curioso?" e comente ISSO, com suas próprias palavras, diferente a cada vez.
-Cada comentário deve ser único e nascer da resposta atual — se você poderia colar o mesmo comentário em qualquer resposta, está errado.
 
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "reação curta (máx 12 palavras) ao CONTEÚDO da última resposta. Específica, esperta. NÃO use xingamento genérico nem o mesmo bordão de antes. NÃO conecte com a pergunta seguinte.",
-  "question": "pergunta sobre a categoria definida no raciocínio. COMPLETAMENTE independente do comment acima. Aborda ângulo novo. Sem Qual é o seu / O que você acha.",
+  "comment": "reação curta (máx 12 palavras) só à última resposta do usuário. Sem citar dados de rede. Única, nunca um bordão repetido.",
+  "question": "pergunta da categoria do raciocínio, usando o dado pontual/ângulo. Independente do comment.",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
-REGRAS:
-- comment: reage ao conteúdo específico da resposta. Humor por observação, nunca por xingamento.
-- NUNCA use as palavras "otário", "nerdola", "bot", "fantasma" como bordão repetido.
-- NUNCA repita um comentário/estrutura que já usou antes na conversa.
-- question: sobre a categoria do raciocínio — NÃO mencione o tema do comment.
+REGRAS FINAIS:
+- comment SEM dados de rede. question PODE ter no máximo 1 dado.
+- NUNCA repita uma estrutura de comentário já usada no histórico acima.
 - options: 2-4 curtas e específicas, ou null. Última SEMPRE "Outro 🖊️" se tiver opções.
-- PROIBIDO: repetir assunto das últimas 2 respostas mesmo com categoria diferente.
-- PROIBIDO: comment mencionar o assunto da próxima pergunta.`
+- PROIBIDO repetir assunto das últimas 2 respostas mesmo com categoria diferente.`
 }
 
 // ============================================================
@@ -341,7 +336,7 @@ export async function POST(req: Request) {
     }).select().single()
     // marca geração pro gate temporal
     await supabase.from('profiles').update({ last_generation_at: new Date().toISOString() }).eq('id', user.id)
-    const vmsg = `🏆 *VEREDITO*\n\n${veredict.veredict_text}\n\n📛 ${veredict.veredict_badge || ''}`
+    const vmsg = `🔮 *VEREDITO*\n\n${veredict.veredict_text}\n\n🏷️ ${veredict.veredict_badge || ''}`
     msgs.push({ role: 'claudemiro', content: vmsg, veredict: true })
     await supabase.from('chat_sessions').update({ phase: 'done', status: 'completed', messages: msgs }).eq('id', sessionId)
     return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, messages: msgs })
