@@ -223,10 +223,30 @@ function buildDialogPrompt(data: string, history: string, mode: string, reasonin
     profissional: 'sério e analítico, linguagem formal mas acessível, sem gírias, sem emojis excessivos',
   }
 
-  // Extrai SÓ a última resposta do usuário (o comment reage a ISSO, não ao digest inteiro)
   const lines = (history || '').split('\n').filter(Boolean)
-  const lastUserLine = [...lines].reverse().find(l => l.startsWith('U:'))?.replace(/^U:\s*/, '') || '(início)'
+  const lastUserLine = [...lines].reverse().find(l => l.startsWith('U:'))?.replace(/^U:\s*/, '') || null
+  const isOpening = !lastUserLine
 
+  // ── ABERTURA: sem comment (não há resposta pra reagir), só a primeira pergunta ──
+  if (isOpening) {
+    return `Você é o Claudemiro. Tom: ${toneVoice[mode] || toneVoice.casual}
+
+Esta é a PRIMEIRA pergunta da conversa. Ainda não há resposta do usuário, então NÃO existe nada pra comentar.
+
+## DADO REAL PRA USAR NA PERGUNTA
+${reasoning.data_hook || '(sem dado — faça pergunta de abertura leve)'}
+Ângulo: ${reasoning.angle || ''}
+
+## REGRAS
+- comment: deixe VAZIO ("").
+- question: UMA pergunta curta e direta. Se há dado real acima, CITE ELE LITERALMENTE com o número exato (ex: "311h em Lethal Company" — nunca "centenas de horas" ou "esse tipo de jogo"). Concisa, no tom certo.
+- NÃO comece com "Qual é o seu" / "O que você acha".
+
+Gere APENAS este JSON:
+{"comment": "", "question": "pergunta de abertura citando o dado real", "options": ["A", "B", "Outro 🖊️"] ou null}`
+  }
+
+  // ── CONVERSA NORMAL ──
   return `Você é o Claudemiro. Tom FIXO desta sessão: ${toneVoice[mode] || toneVoice.casual}
 
 ## A ÚLTIMA RESPOSTA DO USUÁRIO (o comment reage SÓ a isto)
@@ -240,13 +260,13 @@ function buildDialogPrompt(data: string, history: string, mode: string, reasonin
 
 ## REGRA DE OURO DO COMMENT
 O comment reage EXCLUSIVAMENTE à última resposta do usuário acima.
-É PROIBIDO o comment citar dados das redes (horas de jogo, seguidores, repos, canais) — esses dados pertencem à QUESTION, não ao comment.
-Se você se pegar escrevendo "955h", "0 seguidores", nome de jogo ou rede no comment, APAGUE e reaja só ao que a pessoa disse.
-O comment nasce da resposta atual. Se serviria pra qualquer outra resposta, está errado — reescreva.
+É PROIBIDO o comment citar dados das redes (horas, seguidores, repos, canais) — esses dados pertencem à QUESTION.
+O comment nasce da resposta atual. Se serviria pra qualquer outra resposta, está errado.
+Seja CONCISO: uma frase curta basta.
 
 ## REGRA DA QUESTION
-A question usa o "dado pontual" e o "ângulo" do raciocínio. Cita no máximo UM dado, só na pergunta.
-NÃO comece com "Qual é o seu" / "O que você acha" / "Como você se sente".
+Use o "dado pontual" e o "ângulo". Se há dado, CITE O NÚMERO/NOME EXATO (ex: "311h", "32 repos") — nunca vago como "centenas de horas" ou "vários projetos".
+Cita no máximo UM dado. NÃO comece com "Qual é o seu" / "O que você acha" / "Como você se sente".
 
 ## HISTÓRICO RECENTE (para não repetir tema nem estrutura de frase)
 ${history || 'Início da conversa.'}
@@ -254,14 +274,14 @@ ${history || 'Início da conversa.'}
 ## SUA TAREFA
 Gere APENAS este JSON (sem texto fora):
 {
-  "comment": "reação curta (máx 12 palavras) só à última resposta do usuário. Sem citar dados de rede. Única, nunca um bordão repetido.",
-  "question": "pergunta da categoria do raciocínio, usando o dado pontual/ângulo. Independente do comment.",
+  "comment": "reação curta (máx 12 palavras) só à última resposta. Sem dados de rede. Única.",
+  "question": "pergunta da categoria, citando o dado real exato. Independente do comment.",
   "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
 }
 
 REGRAS FINAIS:
-- comment SEM dados de rede. question PODE ter no máximo 1 dado.
-- NUNCA repita uma estrutura de comentário já usada no histórico acima.
+- comment SEM dados de rede. question CITA o dado exato (número/nome), nunca vago.
+- NUNCA repita uma estrutura de comentário já usada no histórico.
 - options: 2-4 curtas e específicas, ou null. Última SEMPRE "Outro 🖊️" se tiver opções.
 - PROIBIDO repetir assunto das últimas 2 respostas mesmo com categoria diferente.`
 }
