@@ -129,7 +129,7 @@ function buildReasoningPrompt(
     profissional: 'Você é analítico, sério. Linguagem formal mas acessível. Zero zoeira.',
   }
 
-  const recentHistory = history.split('\n').slice(-6).join('\n') || 'Início da conversa'
+  const recentHistory = history.split('\n').slice(-12).join('\n') || 'Início da conversa'
   const questionsAsked = askedQuestions.length
     ? askedQuestions.map((q, i) => `${i + 1}. "${q}"`).join('\n')
     : 'Nenhuma ainda.'
@@ -171,7 +171,7 @@ Fontes usadas: [${usedNetworkSources.join(', ') || 'nenhuma'}]
 Última usada: ${usedNetworkSources[usedNetworkSources.length - 1] || 'nenhuma'}
 Fontes NÃO exploradas ainda: [${availableSources.join(', ') || 'todas já usadas'}]
 
-OBRIGATÓRIO: usar uma fonte de [Fontes NÃO exploradas ainda]. Se todas usadas, qualquer exceto a última.
+OBRIGATÓRIO: usar uma fonte de [Fontes NÃO exploradas ainda]. NUNCA reuse uma fonte que já está em [Fontes usadas] — cada rede é perguntada UMA vez só. Se já perguntou YouTube, não volte no YouTube (nem no Frei Gilson ou qualquer canal dele).
 data_source = nome exato da rede (STEAM, SPOTIFY, INSTAGRAM, TIKTOK, YOUTUBE, GITHUB, DISCORD, TWITTER/X).
 
 ## EXTRAIA O ITEM ESPECÍFICO (não comente a lista inteira)
@@ -206,6 +206,10 @@ Tópicos PENDENTES: [${topicosNaoFeitos.join(', ') || 'todos cobertos'}]
 
 ${tipoInstrucao}
 
+## CATEGORIAS JÁ PERGUNTADAS (NÃO repita nenhuma destas)
+[${asked.filter(Boolean).join(', ') || 'nenhuma'}]
+REGRA DURA: escolha uma categoria que NÃO está na lista acima. Cada assunto é perguntado UMA vez só.
+
 ## PERGUNTAS JÁ FEITAS — NÃO REPETIR TEMA NEM INTENÇÃO
 ${questionsAsked}
 
@@ -215,7 +219,7 @@ ${recentHistory}
 ## ÚLTIMAS 3 CATEGORIAS USADAS (proibido repetir assunto delas)
 ${lastCategories.length ? lastCategories.map((c,i) => `${i+1}. ${c}`).join(', ') : 'nenhuma ainda'}
 REGRA CRÍTICA: a próxima pergunta deve ser sobre um assunto DIFERENTE das últimas 3 acima.
-Mesmo que a categoria mude no nome, se o ASSUNTO for parecido (ex: família, pai, mãe, irmão = mesmo cluster), é repetição.
+Mesmo que a categoria mude no nome, se o ASSUNTO for parecido (ex: família, pai, mãe, irmão = mesmo cluster; ou academia/treino/fitness = mesmo cluster; ou Frei Gilson já perguntado = não voltar nele), é repetição PROIBIDA.
 
 ## TAREFA
 Escolha a próxima pergunta seguindo o tipo acima.
@@ -422,6 +426,21 @@ export async function POST(req: Request) {
 
   const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
   const reasoning = safeParse(reasoningJson)
+
+  // SALVAGUARDA anti-repetição: se a categoria escolhida já foi usada (e não é veredito),
+  // troca por uma categoria ainda não perguntada — prioriza tópicos da lista de seleção.
+  if (reasoning.category && reasoning.category !== 'veredito' && asked.includes(reasoning.category)) {
+    const blockedT = s.phase_data?.blockedTopics || []
+    const topicosPend = SELECTABLE_TOPIC_IDS.filter(id => !blockedT.includes(id) && !asked.includes(id))
+    const outrasPend = ALL_CATEGORIES.filter(c => !blockedT.includes(c) && !asked.includes(c))
+    const nova = topicosPend[0] || outrasPend[0]
+    if (nova) {
+      reasoning.category = nova
+      reasoning.data_source = 'TOPICO'
+      reasoning.data_hook = null
+      reasoning.angle = `perguntar sobre ${nova} (assunto ainda não explorado)`
+    }
+  }
 
   // Fim do chat: limite atingido ou reasoning pediu veredito.
   // Mostra a bolha "opinião formada" UMA vez; o frontend exibe a barra de ações.
