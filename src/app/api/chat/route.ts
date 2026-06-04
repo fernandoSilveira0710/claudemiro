@@ -5,12 +5,12 @@ import { buildVeredictPrompt } from '@/lib/card-generator'
 import { NextResponse } from 'next/server'
 
 export const AVAILABLE_TOPICS = [
-  { id: 'games', label: 'Games', emoji: '🎮' }, { id: 'animes', label: 'Animes', emoji: '🐉' },
-  { id: 'filmes', label: 'Filmes/Séries', emoji: '🎬' }, { id: 'futebol', label: 'Futebol', emoji: '⚽' },
-  { id: 'musica', label: 'Música', emoji: '🎵' }, { id: 'politica', label: 'Política', emoji: '🗳️' },
-  { id: 'religiao', label: 'Religião', emoji: '🙏' }, { id: 'signo', label: 'Signo/Espiritualidade', emoji: '🔮' },
-  { id: 'relacionamento', label: 'Relacionamento', emoji: '💘' }, { id: 'carreira', label: 'Carreira/Trampo', emoji: '💼' },
-  { id: 'academia', label: 'Academia/Fitness', emoji: '💪' }, { id: 'internet', label: 'Tretas da Internet', emoji: '🍿' },
+  { id: 'games', label: 'Games', emoji: '��' }, { id: 'animes', label: 'Animes', emoji: '��' },
+  { id: 'filmes', label: 'Filmes/Séries', emoji: '��' }, { id: 'futebol', label: 'Futebol', emoji: '⚽' },
+  { id: 'musica', label: 'Música', emoji: '��' }, { id: 'politica', label: 'Política', emoji: '��️' },
+  { id: 'religiao', label: 'Religião', emoji: '��' }, { id: 'signo', label: 'Signo/Espiritualidade', emoji: '��' },
+  { id: 'relacionamento', label: 'Relacionamento', emoji: '��' }, { id: 'carreira', label: 'Carreira/Trampo', emoji: '��' },
+  { id: 'academia', label: 'Academia/Fitness', emoji: '��' }, { id: 'internet', label: 'Tretas da Internet', emoji: '��' },
 ]
 
 const MAX_INTERACTIONS = 20
@@ -79,8 +79,7 @@ function buildReasoningPrompt(
   data: string, blocked: string[], asked: string[], history: string,
   mode: string, askedQuestions: string[] = [], usedDataSources: string[] = [],
   lastCategories: string[] = []
-)
-: string {
+): string {
   const available = ALL_CATEGORIES.filter(cat => !asked.includes(cat) && !blocked.includes(cat))
 
   // Fontes de redes presentes nos dados
@@ -261,7 +260,7 @@ ${reasoning.data_hook || '(sem dado — faça pergunta de abertura leve)'}
 - NÃO comece com "Qual é o seu" / "O que você acha".
 
 Gere APENAS este JSON:
-{"comment": "", "question": "pergunta de abertura de foco único citando o dado real", "options": ["A", "B", "Outro 🖊️"] ou null}`
+{"comment": "", "question": "pergunta de abertura de foco único citando o dado real", "options": ["A", "B", "Outro ��️"] ou null}`
   }
 
   // ── CONVERSA NORMAL ──
@@ -274,12 +273,21 @@ A conversa tem 20 turnos, então NÃO atropele: faça UMA ÚNICA pergunta por ve
 - ERRADO (o que você fez e não pode repetir): comment="Cê guarda os projetos pra você ou tem medo de code review?" + question="tá solteiro ou namorando?" → SÃO DUAS PERGUNTAS. PROIBIDO.
 - Se você quer saber duas coisas, escolha UMA agora e guarde a outra pro próximo turno. Há turnos de sobra.
 
-## COMO DEVE SOAR — UM DIÁLOGO DE VERDADE
-Pensa numa conversa real entre amigos. A pessoa responde algo, você reage rapidinho (comment, SEM pergunta) e faz a próxima pergunta (question, UMA só).
-O comment é um reconhecimento BREVE e ORIGINAL da resposta específica — você inventa na hora, reagindo ao que ELA disse, em no máximo uma frase curta.
-NUNCA use reconhecimentos genéricos vazios como "hmm saquei", "boa kkk", "entendi kkk", "interessante isso" — PROIBIDO.
-Reaja ao CONTEÚDO: se disse que torce pro Palmeiras, o reconhecimento é sobre isso.
-Cada comment deve ser impossível de colar em outra resposta. NUNCA repita a resposta do usuário de volta. NUNCA force conexão que não existe.
+## COMO DEVE SOAR — DIÁLOGO NATURAL, SEM COSTURA FORÇADA
+A pessoa responde, você reconhece (comment) e faz a próxima pergunta (question) DIRETA ao novo assunto.
+NÃO tente costurar a resposta anterior com a próxima pergunta se os assuntos não se conectam de verdade.
+
+ERRADO (conexão falsa, non-sequitur) — NÃO faça:
+- "Católico, então já tem um time do coração também, qual time?" (ser católico não tem relação com ter time)
+- "Cê segue o CazéTV, mas já que caiu no papo de música, qual estilo?" (CazéTV não tem nada a ver com música)
+
+CERTO (comment reconhece + pergunta direta e separada):
+- comment="Católico, respeito." / question="E futebol, qual time tu torce?"
+- comment="Boa." / question="Falando em música, qual estilo tu curte mais?"
+
+O comment reage SÓ ao que a pessoa disse, em 1 frase curta. A question vai direta ao novo assunto.
+Pode usar um conector leve e honesto ("e aí,", "falando em X," QUANDO de fato muda pra X) — mas nunca invente relação entre coisas que não se relacionam.
+NUNCA use genéricos vazios ("hmm saquei", "boa kkk", "interessante"). NUNCA repita a resposta de volta.
 
 ## A ÚLTIMA RESPOSTA DO USUÁRIO
 "${lastUserLine}"
@@ -300,6 +308,7 @@ Cada comment deve ser impossível de colar em outra resposta. NUNCA repita a res
 - EXTRAIA O FATO: pergunte o "qual" concreto (qual time, qual signo, qual gênero, onde trabalha, qual canal) — não comente um tema sem antes saber o fato dele.
 - Se há dado, cite o número/nome EXATO ("311h", "Frei Gilson") — nunca vago.
 - NÃO comece com "Qual é o seu" / "O que você acha" / "Como você se sente" (mas PODE perguntar "qual" naturalmente: "e aí, qual time tu torce?").
+- VÁ DIRETO AO PONTO: o usuário liberou esses assuntos, então pergunte de forma simples e direta o que quer saber. Sem rodeio, sem justificar por que está perguntando.
 
 ## COERÊNCIA options ↔ question (crítica)
 Cada opção tem que ser uma resposta válida e COMPLETA pra pergunta. Pergunta de anime → opções de anime.
@@ -316,7 +325,7 @@ Gere APENAS este JSON (sem texto fora):
 {
   "comment": "reconhecimento curto SEM pergunta e SEM '?', reagindo ao conteúdo específico da resposta",
   "question": "UMA pergunta só (um único '?'), foco único, citando dado exato se houver",
-  "options": ["Opção A", "Opção B", "Outro 🖊️"] ou null
+  "options": ["Opção A", "Opção B", "Outro ��️"] ou null
 }
 
 REGRAS FINAIS:
@@ -324,7 +333,7 @@ REGRAS FINAIS:
 - comment ORIGINAL toda vez. PROIBIDO "hmm saquei", "boa kkk", "entendi kkk", "interessante" e genéricos.
 - comment NUNCA repete/parafraseia a resposta. NUNCA cita dados de rede. NUNCA força conexão estranha.
 - olhe o HISTÓRICO: se já usou uma abertura de comment parecida, use OUTRA diferente.
-- options coerentes com a question, mesmo domínio. Se a pergunta pede DUAS coisas, options = null. Última SEMPRE "Outro 🖊️" se tiver opções.
+- options coerentes com a question, mesmo domínio. Se a pergunta pede DUAS coisas, options = null. Última SEMPRE "Outro ��️" se tiver opções.
 - PROIBIDO repetir assunto das últimas 2 respostas.`
 }
 
@@ -398,7 +407,7 @@ export async function POST(req: Request) {
     }).select().single()
     // marca geração pro gate temporal
     await supabase.from('profiles').update({ last_generation_at: new Date().toISOString() }).eq('id', user.id)
-    const vmsg = `🔮 *VEREDITO*\n\n${veredict.veredict_text}\n\n🏷️ ${veredict.veredict_badge || ''}`
+    const vmsg = `�� *VEREDITO*\n\n${veredict.veredict_text}\n\n��️ ${veredict.veredict_badge || ''}`
     msgs.push({ role: 'claudemiro', content: vmsg, veredict: true })
     await supabase.from('chat_sessions').update({ phase: 'done', status: 'completed', messages: msgs }).eq('id', sessionId)
     return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, messages: msgs })
@@ -447,7 +456,7 @@ export async function POST(req: Request) {
   if (reasoning.category === 'veredito' || asked.length >= MAX_INTERACTIONS) {
     const lastMsg = msgs[msgs.length - 1]
     if (!lastMsg?.parsed?.isVeredictOffer) {
-      const parsed: any = { comment: 'Já tenho uma opinião formada sobre você. 🔮', question: '', isVeredictOffer: true }
+      const parsed: any = { comment: 'Já tenho uma opinião formada sobre você. ��', question: '', isVeredictOffer: true }
       msgs.push({ role: 'claudemiro', content: '', parsed, reasoning })
       await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data } }).eq('id', s.id)
       return NextResponse.json({ type: 'reply', parsed, interactionCount: asked.length, suggestVeredict: true, sessionId: s.id })
