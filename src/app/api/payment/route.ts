@@ -1,5 +1,9 @@
 import { createServerSupabase } from '@/lib/supabase/server'
 import { createPixPayment, createProSubscription } from '@/lib/mercado-pago'
+import {
+  createPixPayment as createAbacatePix,
+  createProSubscription as createAbacateSubscription,
+} from '@/lib/abacate-pay'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -7,14 +11,68 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { type } = await request.json()
+  const { type, provider = 'mercado_pago' } = await request.json()
   const userEmail = user.email || `${user.id}@claudemiro.app`
 
   try {
-    // FLEX — pagamento único (1 mês, gera a cada 5 dias)
+    // ─── ABACATE PAY ─────────────────────────────────
+    if (provider === 'abacatepay') {
+      if (type === 'one_time') {
+        const { qrCode, qrCodeBase64, paymentId } = await createAbacatePix(
+          9.99, 'Claudemiro FLEX — 1 mês de vereditos', userEmail,
+        )
+
+        await supabase.from('payments').insert({
+          user_id: user.id,
+          amount: 9.99,
+          type: 'one_time',
+          mercado_pago_id: paymentId,
+          plan: 'FLEX',
+          provider: 'abacatepay',
+        })
+
+        return NextResponse.json({ qrCode, qrCodeBase64, paymentId })
+      }
+
+      if (type === 'per_generation') {
+        const { qrCode, qrCodeBase64, paymentId } = await createAbacatePix(
+          3.99, 'Claudemiro — 1 veredito', userEmail,
+        )
+
+        await supabase.from('payments').insert({
+          user_id: user.id,
+          amount: 3.99,
+          type: 'per_generation',
+          mercado_pago_id: paymentId,
+          plan: 'FLEX',
+          provider: 'abacatepay',
+        })
+
+        return NextResponse.json({ qrCode, qrCodeBase64, paymentId })
+      }
+
+      if (type === 'subscription') {
+        const { initPoint, paymentId } = await createAbacateSubscription(userEmail)
+
+        await supabase.from('payments').insert({
+          user_id: user.id,
+          amount: 19.99,
+          type: 'subscription',
+          mercado_pago_id: paymentId,
+          plan: 'PRO',
+          provider: 'abacatepay',
+        })
+
+        return NextResponse.json({ initPoint })
+      }
+
+      return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 })
+    }
+
+    // ─── MERCADO PAGO (default) ──────────────────────
     if (type === 'one_time') {
       const { qrCode, qrCodeBase64, paymentId } = await createPixPayment(
-        9.99, 'Claudemiro FLEX — 1 mês de vereditos', userEmail
+        9.99, 'Claudemiro FLEX — 1 mês de vereditos', userEmail,
       )
 
       await supabase.from('payments').insert({
@@ -23,15 +81,15 @@ export async function POST(request: Request) {
         type: 'one_time',
         mercado_pago_id: String(paymentId),
         plan: 'FLEX',
+        provider: 'mercado_pago',
       })
 
       return NextResponse.json({ qrCode, qrCodeBase64, paymentId })
     }
 
-    // FLEX — por geração (avulso, 1 veredito)
     if (type === 'per_generation') {
       const { qrCode, qrCodeBase64, paymentId } = await createPixPayment(
-        3.99, 'Claudemiro — 1 veredito', userEmail
+        3.99, 'Claudemiro — 1 veredito', userEmail,
       )
 
       await supabase.from('payments').insert({
@@ -40,12 +98,12 @@ export async function POST(request: Request) {
         type: 'per_generation',
         mercado_pago_id: String(paymentId),
         plan: 'FLEX',
+        provider: 'mercado_pago',
       })
 
       return NextResponse.json({ qrCode, qrCodeBase64, paymentId })
     }
 
-    // PRO — assinatura mensal
     if (type === 'subscription') {
       const { initPoint, preferenceId } = await createProSubscription(userEmail)
 
@@ -55,6 +113,7 @@ export async function POST(request: Request) {
         type: 'subscription',
         mercado_pago_id: preferenceId,
         plan: 'PRO',
+        provider: 'mercado_pago',
       })
 
       return NextResponse.json({ initPoint })
