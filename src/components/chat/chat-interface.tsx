@@ -324,16 +324,10 @@ export function ChatInterface() {
           ← CLAUDEMIRO
         </a>
         <div className="flex items-center gap-2">
-          {messages.length >= 2 && !loading && !isDone && (
+          {messages.length >= 2 && !loading && !isDone && !suggestVeredict && (
             <button onClick={handleUndo} className="text-[10px] bg-claude-input hover:bg-white/[0.08] text-claude-muted hover:text-claude-on-surface px-2.5 py-1 rounded-full border border-claude-border/50 transition-all">
               ↩ Desfazer
             </button>
-          )}
-          {suggestVeredict && (
-            <motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} onClick={openWizard}
-              className="text-[10px] bg-claude-primary/15 hover:bg-claude-primary/25 text-claude-primary px-2.5 py-1 rounded-full font-semibold border border-claude-primary/15 transition-all">
-              🏆 Gerar Veredito
-            </motion.button>
           )}
           <span className="flex items-center gap-1.5 text-[10px] bg-claude-success/8 text-claude-success px-2 py-0.5 rounded-full font-medium border border-claude-success/15">
             <span className="w-1.5 h-1.5 rounded-full bg-claude-success animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.5)]" />
@@ -478,14 +472,16 @@ export function ChatInterface() {
             <div className="flex items-center justify-center gap-3">
               <motion.button whileTap={{ scale: 0.96 }}
                 onClick={() => { if (userPlan === 'FREE') { setShowPlanModal(true) } else { resetSession() } }}
-                className="opt-bubble-ghost relative px-5 py-3 text-sm flex items-center gap-2"
+                className="opt-bubble-ghost relative px-5 py-3 text-sm flex items-center gap-2 overflow-hidden"
               >
                 <span>🔄</span> Refazer
-                <span
-                  onClick={(e) => { e.stopPropagation(); setShowPlanModal(true) }}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-claude-bg text-[10px] font-black shadow-[0_0_8px_rgba(245,158,11,0.5)] hover:scale-110 transition-transform"
-                  title="Ver planos"
-                >$</span>
+                {userPlan === 'FREE' && (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); setShowPlanModal(true) }}
+                    className="absolute top-[7px] -right-[34px] rotate-45 bg-gradient-to-r from-emerald-600 to-green-500 text-white text-[8px] font-black tracking-wider px-9 py-[3px] shadow-[0_1px_4px_rgba(0,0,0,0.4)] hover:brightness-110 transition-all"
+                    title="Recurso pago — ver planos"
+                  >PAGO</span>
+                )}
               </motion.button>
               <motion.button whileTap={{ scale: 0.96 }}
                 onClick={openWizard}
