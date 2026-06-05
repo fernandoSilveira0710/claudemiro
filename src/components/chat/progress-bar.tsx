@@ -1,104 +1,91 @@
 'use client'
 
-import { useEffect } from 'react'
-import { motion, useSpring, useTransform } from 'framer-motion'
-
 interface ProgressBarProps {
   interactionCount: number
   maxInteractions?: number
   isDone?: boolean
 }
 
-export function ChatProgressBar({ interactionCount, maxInteractions = 10, isDone = false }: ProgressBarProps) {
-  const rawProgress = isDone ? 1 : Math.min(interactionCount / maxInteractions, 1)
-  const spring = useSpring(0, { stiffness: 35, damping: 18 })
-  const heightPct = useTransform(spring, v => `${v * 100}%`)
-
-  useEffect(() => { spring.set(rawProgress) }, [rawProgress, spring])
-
-  // Cor em 3 fases
-  const fromColor = rawProgress < 0.45 ? '#22D3EE' : rawProgress < 0.75 ? '#818CF8' : '#A855F7'
-  const toColor   = rawProgress < 0.45 ? '#818CF8' : rawProgress < 0.75 ? '#A855F7' : '#EC4899'
-  const glowColor = rawProgress < 0.45 ? '34,211,238' : rawProgress < 0.75 ? '129,140,248' : '236,72,153'
+// Tubo de ensaio que enche conforme o progresso do chat.
+// O nível do líquido reflete interactionCount/maxInteractions.
+// As bolhinhas sobem em loop enquanto há líquido.
+export function ChatProgressBar({ interactionCount, maxInteractions = 20, isDone = false }: ProgressBarProps) {
+  const pct = isDone ? 1 : Math.min(interactionCount / maxInteractions, 1)
+  const TUBE_H = 80
+  const fillH = Math.round(TUBE_H * pct)
 
   return (
     <>
       <style>{`
-        @keyframes bubble-rise-1 { 0%{transform:translateY(0) translateX(-50%) scale(.6);opacity:0} 20%{opacity:.7} 100%{transform:translateY(-60px) translateX(-50%) scale(.3);opacity:0} }
-        @keyframes bubble-rise-2 { 0%{transform:translateY(0) translateX(-50%) scale(.8);opacity:0} 30%{opacity:.5} 100%{transform:translateY(-80px) translateX(-50%) scale(.2);opacity:0} }
-        @keyframes bubble-rise-3 { 0%{transform:translateY(0) translateX(-50%) scale(.5);opacity:0} 25%{opacity:.6} 100%{transform:translateY(-50px) translateX(-50%) scale(.4);opacity:0} }
-        @keyframes wave-surface  { 0%,100%{transform:scaleX(.85) translateY(0)} 50%{transform:scaleX(1.15) translateY(-1px)} }
-        @keyframes bar-glow-pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+        @keyframes tubeBubbles {
+          0% {
+            box-shadow: 4px -10px rgba(216,180,254,0), 6px 0px rgba(216,180,254,0), 8px -15px rgba(216,180,254,0), 12px 0px rgba(216,180,254,0);
+          }
+          20% {
+            box-shadow: 4px -20px rgba(216,180,254,0), 8px -10px rgba(216,180,254,0), 10px -30px rgba(216,180,254,0.6), 15px -5px rgba(216,180,254,0);
+          }
+          40% {
+            box-shadow: 2px -40px rgba(216,180,254,0.6), 8px -30px rgba(216,180,254,0.5), 8px -55px rgba(216,180,254,0.6), 12px -15px rgba(216,180,254,0.6);
+          }
+          60% {
+            box-shadow: 4px -55px rgba(216,180,254,0.6), 6px -48px rgba(216,180,254,0.5), 10px -68px rgba(216,180,254,0.6), 15px -25px rgba(216,180,254,0.6);
+          }
+          80% {
+            box-shadow: 2px -68px rgba(216,180,254,0.6), 4px -60px rgba(216,180,254,0.5), 8px -75px rgba(216,180,254,0), 12px -35px rgba(216,180,254,0.6);
+          }
+          100% {
+            box-shadow: 4px -75px rgba(216,180,254,0), 8px -70px rgba(216,180,254,0), 10px -78px rgba(216,180,254,0), 15px -45px rgba(216,180,254,0);
+          }
+        }
+        @keyframes tubeGlow {
+          0%, 100% { filter: drop-shadow(0 0 4px rgba(168,85,247,0.3)); }
+          50% { filter: drop-shadow(0 0 9px rgba(168,85,247,0.6)); }
+        }
+        .miro-tube {
+          width: 24px;
+          height: ${TUBE_H}px;
+          display: block;
+          border: 1px solid rgba(243,232,255,0.55);
+          border-radius: 0 0 50px 50px;
+          position: relative;
+          box-sizing: border-box;
+          background-image: linear-gradient(#A855F7 ${TUBE_H}px, transparent 0);
+          background-position: 0px ${TUBE_H - fillH}px;
+          background-size: 22px ${TUBE_H}px;
+          background-repeat: no-repeat;
+          transition: background-position 0.8s cubic-bezier(0.4,0,0.2,1);
+          animation: tubeGlow 3s ease-in-out infinite;
+        }
+        .miro-tube::after {
+          content: '';
+          box-sizing: border-box;
+          top: -6px;
+          left: 50%;
+          transform: translateX(-50%);
+          position: absolute;
+          border: 1px solid rgba(243,232,255,0.55);
+          border-radius: 50%;
+          width: 28px;
+          height: 6px;
+        }
+        .miro-tube::before {
+          content: '';
+          box-sizing: border-box;
+          left: 6px;
+          bottom: 8px;
+          border-radius: 50%;
+          position: absolute;
+          width: 5px;
+          height: 5px;
+          animation: tubeBubbles 4s linear infinite;
+        }
       `}</style>
 
-      <div className="absolute right-2.5 top-6 bottom-6 w-3 z-10 flex flex-col items-center">
-        <div className="relative flex-1 w-full">
-
-          {/* Trilho */}
-          <div className="absolute inset-0 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
-
-            {/* Coluna de água */}
-            <motion.div
-              className="absolute bottom-0 left-0 right-0 overflow-hidden rounded-full"
-              style={{ height: heightPct }}
-            >
-              {/* Gradiente */}
-              <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${fromColor}, ${toColor})` }} />
-
-              {/* Brilho lateral esquerdo */}
-              <div className="absolute inset-y-0 left-0 w-1/3 rounded-l-full" style={{ background: 'linear-gradient(to right, rgba(255,255,255,0.28), transparent)' }} />
-
-              {/* Onda na superfície */}
-              {rawProgress > 0.05 && (
-                <div
-                  className="absolute top-0 left-0 right-0 h-2.5"
-                  style={{
-                    background: 'radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.55) 0%, transparent 80%)',
-                    animation: 'wave-surface 1.8s ease-in-out infinite',
-                    transformOrigin: 'center top',
-                  }}
-                />
-              )}
-
-              {/* Bolhas — CSS puro, sem JS */}
-              {rawProgress > 0.15 && (
-                <>
-                  <div className="absolute left-1/2 rounded-full border border-white/30"
-                    style={{ width:3, height:3, bottom:'12%', animation:'bubble-rise-1 2.4s ease-out infinite', animationDelay:'0s' }} />
-                  <div className="absolute left-1/2 rounded-full border border-white/25"
-                    style={{ width:2, height:2, bottom:'25%', animation:'bubble-rise-2 3.1s ease-out infinite', animationDelay:'0.8s' }} />
-                  <div className="absolute left-1/2 rounded-full border border-white/20"
-                    style={{ width:2, height:2, bottom:'8%', animation:'bubble-rise-3 2.7s ease-out infinite', animationDelay:'1.5s' }} />
-                  {rawProgress > 0.5 && (
-                    <div className="absolute left-1/2 rounded-full border border-white/20"
-                      style={{ width:3, height:3, bottom:'40%', animation:'bubble-rise-1 3.5s ease-out infinite', animationDelay:'0.4s' }} />
-                  )}
-                </>
-              )}
-            </motion.div>
-
-            {/* Marcadores de fase */}
-            {[0.25, 0.5, 0.75].map((m, i) => (
-              <div key={i} className="absolute left-0 right-0 h-px" style={{
-                bottom: `${m * 100}%`,
-                background: rawProgress >= m ? `rgba(${glowColor},0.6)` : 'rgba(255,255,255,0.07)',
-              }} />
-            ))}
-          </div>
-
-          {/* Glow externo quando quase cheio */}
-          {rawProgress > 0.75 && (
-            <div className="absolute inset-0 rounded-full pointer-events-none" style={{
-              boxShadow: `0 0 10px 2px rgba(${glowColor},0.45)`,
-              animation: 'bar-glow-pulse 1.6s ease-in-out infinite',
-            }} />
-          )}
-        </div>
-
-        {/* Contador */}
-        <p className="text-[8px] text-white/20 mt-1.5 font-mono tabular-nums select-none">
+      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-2 pointer-events-none">
+        <span className="miro-tube" />
+        <span className="text-[8px] text-[#F3E8FF]/25 font-mono tabular-nums select-none">
           {isDone ? '✓' : `${interactionCount}/${maxInteractions}`}
-        </p>
+        </span>
       </div>
     </>
   )

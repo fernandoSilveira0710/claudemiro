@@ -33,21 +33,15 @@ function MiroAvatar() {
   return (
     <div className="w-full h-full rounded-full overflow-hidden" style={{ background: 'linear-gradient(135deg, #1A0A33, #0D0221)' }}>
       <svg viewBox="0 0 40 40" className="w-full h-full">
-        {/* Antenna */}
         <line x1="20" y1="2" x2="20" y2="8" stroke="#A855F7" strokeWidth="1.5" strokeLinecap="round" />
         <circle cx="20" cy="1.5" r="1.5" fill="#EC4899" />
-        {/* Head */}
         <rect x="8" y="8" width="24" height="18" rx="5" fill="#1A0A33" stroke="#A855F7" strokeWidth="1" />
-        {/* Eyes */}
         <circle cx="15" cy="17" r="3" fill="#A855F7" />
         <circle cx="25" cy="17" r="3" fill="#A855F7" />
         <circle cx="15" cy="17" r="1.2" fill="#0D0221" />
         <circle cx="25" cy="17" r="1.2" fill="#0D0221" />
-        {/* Mouth */}
         <rect x="14" y="23" width="12" height="2" rx="1" fill="#EC4899" opacity="0.6" />
-        {/* Body */}
         <rect x="12" y="28" width="16" height="10" rx="4" fill="#1A0A33" stroke="#A855F7" strokeWidth="0.8" />
-        {/* Arms */}
         <line x1="8" y1="33" x2="12" y2="33" stroke="#A855F7" strokeWidth="1.5" strokeLinecap="round" />
         <line x1="28" y1="33" x2="32" y2="33" stroke="#A855F7" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
@@ -350,10 +344,11 @@ export function ChatInterface() {
         </div>
       </header>
 
+      {/* ═════ TUBO DE ENSAIO (fixed, fora do scroll) ═════ */}
+      <ChatProgressBar interactionCount={interactionCount} maxInteractions={20} isDone={isDone} />
+
       {/* ═════ MESSAGES ═════ */}
       <div className="flex-1 overflow-y-auto relative z-10">
-        <ChatProgressBar interactionCount={interactionCount} maxInteractions={20} isDone={isDone} />
-
         <div className="max-w-2xl mx-auto px-4">
           <div className="flex justify-center pt-6 pb-4">
             <div className="w-24 h-24 claude-bot-glow">
@@ -370,15 +365,12 @@ export function ChatInterface() {
                   transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
                 >
                   {msg.role === 'user' ? (
-                    /* ═══════ USER ═══════ */
                     <div className="flex items-start gap-2.5 justify-end">
                       <div className="flex flex-col items-end max-w-[72%]">
-                        {/* Nome + hora */}
                         <div className="flex items-center gap-2 mb-1 pr-1">
                           <TimeStamp />
                           <span className="text-[11px] font-semibold text-claude-muted/50">Você</span>
                         </div>
-                        {/* Balão */}
                         <div className="rounded-2xl rounded-tr-sm px-4 py-2.5"
                           style={{
                             background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(124,58,237,0.4))',
@@ -389,14 +381,12 @@ export function ChatInterface() {
                           <p className="text-sm leading-relaxed text-white">{msg.content}</p>
                         </div>
                       </div>
-                      {/* Avatar */}
                       <div className="w-9 h-9 rounded-full flex-shrink-0 mt-4 overflow-hidden shadow-md"
                         style={{ border: '2px solid rgba(168,85,247,0.35)' }}>
                         <UserAvatar />
                       </div>
                     </div>
                   ) : msg.veredict ? (
-                    /* ═══════ VEREDICT ═══════ */
                     <div className="flex items-start gap-2.5">
                       <div className="w-9 h-9 rounded-full flex-shrink-0 mt-4 overflow-hidden shadow-md"
                         style={{ border: '2px solid rgba(168,85,247,0.4)' }}>
@@ -413,19 +403,16 @@ export function ChatInterface() {
                       </div>
                     </div>
                   ) : (
-                    /* ═══════ MIRO ═══════ */
                     <div className="flex items-start gap-2.5">
                       <div className="w-9 h-9 rounded-full flex-shrink-0 mt-4 overflow-hidden shadow-md"
                         style={{ border: '2px solid rgba(168,85,247,0.3)' }}>
                         <MiroAvatar />
                       </div>
                       <div className="flex flex-col max-w-[72%]">
-                        {/* Nome + hora */}
                         <div className="flex items-center gap-2 mb-1 pl-1">
                           <span className="text-[11px] font-semibold text-claude-primary/60">Miro</span>
                           <TimeStamp />
                         </div>
-                        {/* Balão */}
                         <div className="rounded-2xl rounded-tl-sm px-4 py-2.5 bg-claude-glass backdrop-blur-2xl border border-claude-border/40 shadow-sm">
                           <p className="text-sm leading-relaxed">
                             {msg.parsed?.comment && (
@@ -442,7 +429,6 @@ export function ChatInterface() {
                 </motion.div>
               ))}
 
-              {/* ═══════ LOADING ═══════ */}
               {loading && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-start gap-2.5">
                   <div className="w-9 h-9 rounded-full flex-shrink-0 mt-4 overflow-hidden"
@@ -485,7 +471,6 @@ export function ChatInterface() {
           FOOTER
           ═══════════════════════════════════════════ */}
 
-      {/* ── FIM DE CHAT ── */}
       {!isDone && suggestVeredict ? (
         <div className="border-t border-claude-border/20 p-6 bg-claude-glass backdrop-blur-2xl z-10">
           <div className="max-w-sm mx-auto space-y-4">
@@ -495,7 +480,6 @@ export function ChatInterface() {
               </span>
             </p>
             <div className="grid grid-cols-2 gap-3">
-              {/* Refazer */}
               <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
                 onClick={() => { if (userPlan === 'FREE') { setShowPlanModal(true) } else { resetSession() } }}
                 className="relative flex flex-col items-center gap-2 py-5 rounded-2xl bg-claude-input border border-claude-border hover:border-claude-border-hover hover:bg-white/[0.04] transition-all group"
@@ -509,7 +493,6 @@ export function ChatInterface() {
                 >$</span>
               </motion.button>
 
-              {/* Gerar Veredito */}
               <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
                 onClick={openWizard}
                 className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-claude-primary/8 border border-claude-primary/25 hover:bg-claude-primary/18 hover:border-claude-primary/45 transition-all group shadow-[0_0_18px_rgba(168,85,247,0.06)] hover:shadow-[0_0_30px_rgba(168,85,247,0.18)]"
@@ -521,7 +504,6 @@ export function ChatInterface() {
           </div>
         </div>
       ) : !isDone && !loading && hasOptions && !showFreeInput ? (
-        /* ── BOTÕES DE OPÇÃO ── */
         <div className="border-t border-claude-border/20 p-4 bg-claude-glass backdrop-blur-2xl z-10">
           <div className="max-w-xl mx-auto space-y-2">
             <p className="text-[9px] text-claude-muted/25 font-mono text-center tracking-[0.12em] uppercase mb-1">
@@ -559,7 +541,6 @@ export function ChatInterface() {
           </div>
         </div>
       ) : !isDone ? (
-        /* ── INPUT ── */
         <div className="border-t border-claude-border/20 p-4 bg-claude-glass backdrop-blur-2xl z-10">
           <div className="max-w-2xl mx-auto flex gap-2.5 items-end">
             <div className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden self-end mb-0.5"
@@ -587,7 +568,6 @@ export function ChatInterface() {
           </div>
         </div>
       ) : isDone ? (
-        /* ── PÓS-VEREDICT ── */
         <div className="border-t border-claude-border/20 p-6 bg-claude-glass backdrop-blur-2xl z-10">
           <div className="max-w-sm mx-auto grid grid-cols-2 gap-3">
             <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
