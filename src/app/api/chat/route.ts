@@ -2,6 +2,7 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { chatCompletion } from '@/lib/ai'
 import { scanUserData, ScannedUserData } from '@/lib/scanner'
 import { buildVeredictPrompt } from '@/lib/card-generator'
+import { buildSlots, pickNextSlot, slotInstructions, AskedSlot } from '@/lib/coverage-planner'
 import { NextResponse } from 'next/server'
 
 export const AVAILABLE_TOPICS = [
@@ -352,9 +353,18 @@ export async function POST(req: Request) {
     let raw: ScannedUserData = {}
     try { raw = await scanUserData(user.id) } catch {}
     const dataStr = digest(raw)
-    const reasoningPrompt = buildReasoningPrompt(dataStr, blocked, [], '', mode, [], [], [])
-    const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
-    const reasoning = safeParse(reasoningJson)
+
+    // descobrir plataformas conectadas a partir do scanned_data
+    const { data: conns } = await supabase.from('social_connections').select('platform').eq('user_id', user.id)
+    const connectedPlatforms = (conns || []).map(c => c.platform)
+
+    // planner escolhe o primeiro slot
+    const slots = buildSlots(connectedPlatforms, blocked)
+    const firstSlot = pickNextSlot(slots, [], null, MAX_INTERACTIONS, 0)
+    const reasoning = firstSlot
+      ? { category: firstSlot.key, data_source: firstSlot.type === 'network' ? firstSlot.key.toUpperCase() : 'TOPICO', data_hook: null, angle: slotInstructions(firstSlot, raw, 0), tone_note: '' }
+      : { category: 'games', data_source: 'TOPICO', data_hook: null, angle: '', tone_note: '' }
+
     const dialogPrompt = buildDialogPrompt(dataStr, '', mode, reasoning)
     const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
     const parsed = sanitizeParsed(safeParse(dialogJson))
@@ -363,9 +373,11 @@ export async function POST(req: Request) {
       messages: [{ role: 'claudemiro', content: dialogJson, parsed, reasoning }],
       phase_data: {
         blockedTopics: blocked,
+        connectedPlatforms,
         askedCategories: [reasoning.category].filter(Boolean),
         askedQuestions: [parsed.question].filter(Boolean),
-        usedDataSources: [normalizeDataSource(reasoning.data_source)].filter(Boolean),
+        askedSlots: firstSlot ? [{ key: firstSlot.key, count: 1 }] : [],
+        lastSlotKey: firstSlot?.key || null,
       },
       scanned_data: raw,
     }).select().single()
@@ -421,47 +433,43 @@ export async function POST(req: Request) {
   const msgs = [...(s.messages || []), { role: 'user', content: message }]
   const asked = s.phase_data?.askedCategories || []
   const askedQuestions = s.phase_data?.askedQuestions || []
-  const usedDataSources = s.phase_data?.usedDataSources || []
+  const askedSlots: AskedSlot[] = s.phase_data?.askedSlots || []
+  const lastSlotKey: string | null = s.phase_data?.lastSlotKey || null
   const dataStr = digest(s.scanned_data || {})
   const hist = formatHistoryString(msgs)
 
-  let reasoningPrompt: string
-  const lastCategories = asked.slice(-3)
-  if (asked.length >= MAX_INTERACTIONS) {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources, lastCategories) + '\n[' + asked.length + ' perguntas feitas. Chega — category DEVE ser "veredito" agora.]'
-  } else {
-    reasoningPrompt = buildReasoningPrompt(dataStr, s.phase_data?.blockedTopics || [], asked, hist, s.mode, askedQuestions, usedDataSources, lastCategories)
-  }
+  // ── PLANNER: o código decide o próximo slot (rede ou tópico) ──
+  const connectedPlatforms: string[] = (s.phase_data?.connectedPlatforms || [])
+  const blockedT = s.phase_data?.blockedTopics || []
+  const slots = buildSlots(connectedPlatforms, blockedT)
+  const totalAsked = askedSlots.reduce((sum, a) => sum + a.count, 0)
+  const nextSlot = pickNextSlot(slots, askedSlots, lastSlotKey, MAX_INTERACTIONS, totalAsked)
 
-  const reasoningJson = await chatCompletion([{ role: 'user', content: reasoningPrompt }], undefined, { temperature: 0.7, maxTokens: 300, json: true })
-  const reasoning = safeParse(reasoningJson)
-
-  // SALVAGUARDA anti-repetição: se a categoria escolhida já foi usada (e não é veredito),
-  // troca por uma categoria ainda não perguntada — prioriza tópicos da lista de seleção.
-  if (reasoning.category && reasoning.category !== 'veredito' && asked.includes(reasoning.category)) {
-    const blockedT = s.phase_data?.blockedTopics || []
-    const topicosPend = SELECTABLE_TOPIC_IDS.filter(id => !blockedT.includes(id) && !asked.includes(id))
-    const outrasPend = ALL_CATEGORIES.filter(c => !blockedT.includes(c) && !asked.includes(c))
-    const nova = topicosPend[0] || outrasPend[0]
-    if (nova) {
-      reasoning.category = nova
-      reasoning.data_source = 'TOPICO'
-      reasoning.data_hook = null
-      reasoning.angle = `perguntar sobre ${nova} (assunto ainda não explorado)`
+  // reasoning sintético a partir do slot do planner
+  let reasoning: any
+  if (nextSlot && totalAsked < MAX_INTERACTIONS) {
+    const slotCount = askedSlots.find(a => a.key === nextSlot.key)?.count || 0
+    reasoning = {
+      category: nextSlot.key,
+      data_source: nextSlot.type === 'network' ? nextSlot.key.toUpperCase() : 'TOPICO',
+      data_hook: null,
+      angle: slotInstructions(nextSlot, s.scanned_data || {}, slotCount),
+      tone_note: '',
     }
+  } else {
+    reasoning = { category: 'veredito', data_source: 'TOPICO', data_hook: null, angle: '', tone_note: '' }
   }
 
-  // Fim do chat: limite atingido ou reasoning pediu veredito.
-  // Mostra a bolha "opinião formada" UMA vez; o frontend exibe a barra de ações.
-  if (reasoning.category === 'veredito' || asked.length >= MAX_INTERACTIONS) {
+  // Fim do chat: planner não tem mais slot OU atingiu o limite.
+  if (reasoning.category === 'veredito' || totalAsked >= MAX_INTERACTIONS || !nextSlot) {
     const lastMsg = msgs[msgs.length - 1]
     if (!lastMsg?.parsed?.isVeredictOffer) {
       const parsed: any = { comment: 'Já tenho uma opinião formada sobre você. ��', question: '', isVeredictOffer: true }
-      msgs.push({ role: 'claudemiro', content: '', parsed, reasoning })
+      msgs.push({ role: 'claudemiro', content: '', parsed })
       await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data } }).eq('id', s.id)
-      return NextResponse.json({ type: 'reply', parsed, interactionCount: asked.length, suggestVeredict: true, sessionId: s.id })
+      return NextResponse.json({ type: 'reply', parsed, interactionCount: totalAsked, suggestVeredict: true, sessionId: s.id })
     }
-    return NextResponse.json({ type: 'noop', interactionCount: asked.length, suggestVeredict: true, sessionId: s.id })
+    return NextResponse.json({ type: 'noop', interactionCount: totalAsked, suggestVeredict: true, sessionId: s.id })
   }
 
   const dialogTemp = mode === 'engracado' ? 0.65 : mode === 'profissional' ? 0.5 : 0.7
@@ -469,14 +477,24 @@ export async function POST(req: Request) {
   const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: dialogTemp, maxTokens: 400, json: true })
   const parsed = sanitizeParsed(safeParse(dialogJson))
   msgs.push({ role: 'claudemiro', content: dialogJson, parsed, reasoning })
+
+  // rastreamento de slots (planner)
+  const newAskedSlots: AskedSlot[] = [...askedSlots]
+  const existing = newAskedSlots.find(a => a.key === nextSlot!.key)
+  if (existing) existing.count++
+  else newAskedSlots.push({ key: nextSlot!.key, count: 1 })
+  const newTotalAsked = totalAsked + 1
+
   const newAsked = [...asked, reasoning.category].filter(Boolean)
   const newAskedQuestions = [...askedQuestions, parsed.question].filter(Boolean)
-  const newUsedSources = [...usedDataSources, normalizeDataSource(reasoning.data_source)].filter(Boolean)
-  await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions, usedDataSources: newUsedSources } }).eq('id', s.id)
+  await supabase.from('chat_sessions').update({
+    messages: msgs,
+    phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions, askedSlots: newAskedSlots, lastSlotKey: nextSlot!.key }
+  }).eq('id', s.id)
 
   const hasQuestion = !!(parsed.question && parsed.question.trim())
-  const suggestNow = newAsked.length >= MAX_INTERACTIONS && !hasQuestion
-  return NextResponse.json({ type: 'reply', parsed, interactionCount: newAsked.length, suggestVeredict: suggestNow, sessionId: s.id })
+  const suggestNow = newTotalAsked >= MAX_INTERACTIONS && !hasQuestion
+  return NextResponse.json({ type: 'reply', parsed, interactionCount: newTotalAsked, suggestVeredict: suggestNow, sessionId: s.id })
 }
 
 export async function GET() {
@@ -485,7 +503,23 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { data: s } = await supabase.from('chat_sessions').select('*').eq('user_id', user.id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single()
   if (!s) return NextResponse.json({ hasSession: false })
-  return NextResponse.json({ hasSession: true, sessionId: s.id, mode: s.mode, messages: s.messages || [], blockedTopics: s.phase_data?.blockedTopics || [] })
+
+  // Calcula interactionCount a partir das mensagens (pares user+claudemiro)
+  const msgs = s.messages || []
+  const interactionCount = msgs.filter((m: any) => m.role === 'user').length
+  // Se a última mensagem do Claudemiro tem isVeredictOffer, já encerrou
+  const lastClaudeMsg = [...msgs].reverse().find((m: any) => m.role === 'claudemiro')
+  const suggestVeredict = !!(lastClaudeMsg?.parsed?.isVeredictOffer)
+
+  return NextResponse.json({
+    hasSession: true,
+    sessionId: s.id,
+    mode: s.mode,
+    messages: msgs,
+    blockedTopics: s.phase_data?.blockedTopics || [],
+    interactionCount,
+    suggestVeredict,
+  })
 }
 
 function formatHistoryString(msgs: any[]): string {

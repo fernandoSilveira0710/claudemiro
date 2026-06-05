@@ -1,28 +1,27 @@
 import { createServerSupabase } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import crypto from 'crypto'
+import { validateWebhookSignature } from '@/lib/abacate-pay'
 
 export async function POST(request: Request) {
-  const body = await request.json()
-  const signature = request.headers.get('x-abacatepay-signature')
+  const rawBody = await request.text()
+  const signature = request.headers.get('X-Webhook-Signature')
 
-  // ─── AbacatePay Webhook ─────────────────────────────
+  // ─── AbacatePay Webhook (v2) ─────────────────────────
   if (signature) {
-    const secret = process.env.ABACATE_PAY_WEBHOOK_SECRET
-    if (secret) {
-      const rawBody = JSON.stringify(body)
-      const hmac = crypto.createHmac('sha256', secret)
-      hmac.update(rawBody)
-      const expected = hmac.digest('hex')
+    // Valida assinatura HMAC-SHA256 base64 com chave pública
+    if (!validateWebhookSignature(rawBody, signature)) {
+      console.warn('[AbacatePay] Invalid webhook signature')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+    }
 
-      if (expected !== signature) {
-        console.warn('[AbacatePay] Invalid webhook signature')
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-      }
+    let body: any
+    try { body = JSON.parse(rawBody) } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
     }
 
     const event = body.event as string
-    const paymentId = body.data?.id as string | undefined
+    const paymentData = body.data
+    const paymentId = paymentData?.checkout?.id || paymentData?.transparent?.id || paymentData?.id
 
     if (!paymentId) {
       return NextResponse.json({ received: true })
@@ -30,7 +29,7 @@ export async function POST(request: Request) {
 
     const supabase = await createServerSupabase()
 
-    // PIX pago
+    // PIX transparente pago
     if (event === 'transparent.completed') {
       const { data: payment } = await supabase
         .from('payments')
@@ -91,6 +90,11 @@ export async function POST(request: Request) {
   }
 
   // ─── Mercado Pago Webhook (legacy) ──────────────────
+  let body: any
+  try { body = JSON.parse(rawBody) } catch {
+    return NextResponse.json({ received: true })
+  }
+
   if (body.type === 'payment' && body.data?.id) {
     const supabase = await createServerSupabase()
 

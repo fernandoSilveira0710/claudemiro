@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { type, provider = 'mercado_pago' } = await request.json()
+  const { type, provider = 'abacatepay' } = await request.json()
   const userEmail = user.email || `${user.id}@claudemiro.app`
 
   try {

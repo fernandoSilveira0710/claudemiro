@@ -56,7 +56,9 @@ export async function createPixPayment(
 ) {
   const amountInCents = Math.round(amountInReais * 100)
 
+  // Nova API v2: method + data wrapper
   const data = await abacateFetch<TransparentData>('/transparents/create', {
+    method: 'PIX',
     data: {
       amount: amountInCents,
       description,
@@ -81,8 +83,8 @@ export async function createPixPayment(
 
 interface TransparentStatus {
   id: string
-  status: 'PENDING' | 'COMPLETED' | 'EXPIRED' | 'REFUNDED' | 'DISPUTED'
-  amount: number
+  status: 'PENDING' | 'PAID' | 'EXPIRED' | 'REFUNDED' | 'CANCELLED'
+  expiresAt: string
 }
 
 export async function checkPaymentStatus(paymentId: string) {
@@ -100,6 +102,9 @@ interface SubscriptionData {
 /**
  * Cria checkout de assinatura (PRO mensal).
  * Redireciona usuário para página hospedada da AbacatePay.
+ *
+ * Nova API: usa customerId (não customer inline),
+ * methods: ["CARD"] para assinaturas.
  */
 export async function createProSubscription(customerEmail: string) {
   const data = await abacateFetch<SubscriptionData>('/subscriptions/create', {
@@ -109,9 +114,9 @@ export async function createProSubscription(customerEmail: string) {
         quantity: 1,
       },
     ],
-    customer: { email: customerEmail },
     returnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
     completionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
+    methods: ['CARD'],
     metadata: {
       source: 'claudemiro',
       plan: 'PRO',
@@ -124,16 +129,27 @@ export async function createProSubscription(customerEmail: string) {
 // ─── Webhook ───────────────────────────────────────────────
 
 /**
+ * Chave pública HMAC fornecida pela AbacatePay para validação de webhooks.
+ * https://docs.abacatepay.com/pages/webhooks
+ */
+const ABACATEPAY_PUBLIC_KEY =
+  't9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9'
+
+/**
  * Valida assinatura HMAC do webhook da AbacatePay.
- * Usada pelo webhook handler diretamente.
+ * Nova API v2: usa HMAC-SHA256 com digest base64 + chave pública.
+ * Header: X-Webhook-Signature
  */
 export function validateWebhookSignature(
   payload: string,
   signature: string,
-  secret: string,
 ): boolean {
-  const hmac = crypto.createHmac('sha256', secret)
+  const hmac = crypto.createHmac('sha256', ABACATEPAY_PUBLIC_KEY)
   hmac.update(payload)
-  const expected = hmac.digest('hex')
-  return expected === signature
+  const expected = hmac.digest('base64')
+
+  // timingSafeEqual para evitar timing attacks
+  const A = Buffer.from(expected)
+  const B = Buffer.from(signature)
+  return A.length === B.length && crypto.timingSafeEqual(A, B)
 }
