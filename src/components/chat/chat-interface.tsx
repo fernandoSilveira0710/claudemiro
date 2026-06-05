@@ -26,8 +26,6 @@ const AVAILABLE_TOPICS = [
   { id: 'academia', label: 'Academia/Fitness', emoji: '💪' }, { id: 'internet', label: 'Tretas da Internet', emoji: '🍿' },
 ]
 
-const OPTION_ICONS = ['①', '②', '③', '④']
-
 /* ── Mini Robot Avatar (inline SVG pra performance) ── */
 function MiroAvatar() {
   return (
@@ -344,7 +342,7 @@ export function ChatInterface() {
         </div>
       </header>
 
-      {/* ═════ TUBO DE ENSAIO (fixed, fora do scroll) ═════ */}
+      {/* ═════ TUBO DE ENSAIO ═════ */}
       <ChatProgressBar interactionCount={interactionCount} maxInteractions={20} isDone={isDone} />
 
       {/* ═════ MESSAGES ═════ */}
@@ -472,117 +470,101 @@ export function ChatInterface() {
           ═══════════════════════════════════════════ */}
 
       {!isDone && suggestVeredict ? (
-        <div className="border-t border-claude-border/20 p-6 bg-claude-glass backdrop-blur-2xl z-10">
-          <div className="max-w-sm mx-auto space-y-4">
-            <p className="text-center">
-              <span className="text-[10px] text-claude-muted/30 font-mono tracking-[0.15em] uppercase">
-                Já tenho uma opinião formada sobre você
-              </span>
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
+        <div className="border-t border-claude-border/15 p-6 bg-claude-glass backdrop-blur-2xl z-10">
+          <div className="max-w-md mx-auto flex flex-col items-center gap-4">
+            <span className="text-[10px] text-claude-muted/30 font-mono tracking-[0.18em] uppercase text-center">
+              Já tenho uma opinião formada sobre você
+            </span>
+            <div className="flex items-center justify-center gap-3">
+              <motion.button whileTap={{ scale: 0.96 }}
                 onClick={() => { if (userPlan === 'FREE') { setShowPlanModal(true) } else { resetSession() } }}
-                className="relative flex flex-col items-center gap-2 py-5 rounded-2xl bg-claude-input border border-claude-border hover:border-claude-border-hover hover:bg-white/[0.04] transition-all group"
+                className="opt-bubble-ghost relative px-5 py-3 text-sm flex items-center gap-2"
               >
-                <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🔄</span>
-                <span className="text-sm font-semibold text-claude-on-surface/60 group-hover:text-claude-on-surface/80">Refazer</span>
+                <span>🔄</span> Refazer
                 <span
                   onClick={(e) => { e.stopPropagation(); setShowPlanModal(true) }}
-                  className="absolute top-2 right-2 w-5 h-5 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-claude-bg text-[10px] font-black shadow-[0_0_8px_rgba(245,158,11,0.4)] hover:scale-110 transition-transform"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-yellow-600 text-claude-bg text-[10px] font-black shadow-[0_0_8px_rgba(245,158,11,0.5)] hover:scale-110 transition-transform"
                   title="Ver planos"
                 >$</span>
               </motion.button>
-
-              <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
+              <motion.button whileTap={{ scale: 0.96 }}
                 onClick={openWizard}
-                className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-claude-primary/8 border border-claude-primary/25 hover:bg-claude-primary/18 hover:border-claude-primary/45 transition-all group shadow-[0_0_18px_rgba(168,85,247,0.06)] hover:shadow-[0_0_30px_rgba(168,85,247,0.18)]"
+                className="opt-bubble px-7 py-3 text-sm font-semibold flex items-center gap-2"
               >
-                <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🏆</span>
-                <span className="text-sm font-bold text-claude-primary">Gerar Veredito</span>
+                <span>🏆</span> Gerar Veredito
               </motion.button>
             </div>
           </div>
         </div>
       ) : !isDone && !loading && hasOptions && !showFreeInput ? (
-        <div className="border-t border-claude-border/20 p-4 bg-claude-glass backdrop-blur-2xl z-10">
-          <div className="max-w-xl mx-auto space-y-2">
-            <p className="text-[9px] text-claude-muted/25 font-mono text-center tracking-[0.12em] uppercase mb-1">
-              Toque em uma opção
+        <div className="border-t border-claude-border/15 p-5 bg-claude-glass backdrop-blur-2xl z-10">
+          <div className="max-w-xl mx-auto">
+            <p className="text-[9px] text-claude-muted/25 font-mono text-center tracking-[0.18em] uppercase mb-4">
+              escolha ou escreva
             </p>
-            {lastParsed!.options!.map((opt: string, oi: number) => {
-              const isOther = opt.includes('Outro') || opt.includes('🖊️')
-              return (
-                <motion.button key={oi}
-                  whileHover={{ scale: 1.01, x: 3 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => isOther ? setShowFreeInput(true) : sendMessage(opt)}
-                  className={`w-full flex items-center gap-3 text-left py-3 px-4 rounded-xl border transition-all duration-200 text-sm group ${
-                    isOther
-                      ? 'bg-claude-input hover:bg-white/[0.04] border-claude-border/50 text-claude-on-surface/50 hover:text-claude-on-surface/70'
-                      : 'bg-claude-primary/3 hover:bg-claude-primary/8 border-claude-primary/10 hover:border-claude-primary/25 text-claude-on-surface/80'
-                  }`}
-                >
-                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                    isOther
-                      ? 'bg-claude-input border border-claude-border/40 text-claude-muted/60'
-                      : 'bg-claude-primary/10 border border-claude-primary/20 text-claude-primary group-hover:bg-claude-primary/20'
-                  }`}>
-                    {isOther ? '✎' : OPTION_ICONS[oi] || '•'}
-                  </span>
-                  <span className="flex-1 font-medium">{opt}</span>
-                  {!isOther && (
-                    <svg className="w-4 h-4 text-claude-primary/20 group-hover:text-claude-primary/50 group-hover:translate-x-0.5 transition-all flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  )}
-                </motion.button>
-              )
-            })}
+            <div className="flex flex-wrap justify-center gap-2.5">
+              {lastParsed!.options!.map((opt: string, oi: number) => {
+                const isOther = opt.includes('Outro') || opt.includes('🖊️')
+                if (isOther) {
+                  return (
+                    <motion.button key={oi}
+                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 * oi }}
+                      onClick={() => setShowFreeInput(true)}
+                      className="opt-bubble-ghost px-4 py-2.5 text-sm flex items-center gap-1.5"
+                    >
+                      <span className="text-xs">✎</span> Outro
+                    </motion.button>
+                  )
+                }
+                return (
+                  <motion.button key={oi}
+                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.05 * oi }}
+                    onClick={() => sendMessage(opt)}
+                    className="opt-bubble px-5 py-2.5 text-sm font-medium"
+                  >
+                    {opt}
+                  </motion.button>
+                )
+              })}
+            </div>
           </div>
         </div>
       ) : !isDone ? (
-        <div className="border-t border-claude-border/20 p-4 bg-claude-glass backdrop-blur-2xl z-10">
-          <div className="max-w-2xl mx-auto flex gap-2.5 items-end">
-            <div className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden self-end mb-0.5"
-              style={{ border: '2px solid rgba(168,85,247,0.2)' }}>
-              <MiroAvatar />
-            </div>
-            <div className="flex-1 flex gap-2">
-              <input value={input} onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !loading && sendMessage()}
-                placeholder="Manda a real..."
-                disabled={loading}
-                className="flex-1 bg-claude-input border border-claude-border text-claude-on-surface rounded-2xl h-11 px-4 text-sm placeholder:text-claude-muted/30 outline-none transition-all duration-200 focus:border-claude-primary/35 focus:shadow-[0_0_16px_rgba(168,85,247,0.1)] disabled:opacity-40"
-                style={{ fontFamily: "'Inter', sans-serif" }}
-              />
-              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.93 }}
-                onClick={() => sendMessage()}
-                disabled={!input.trim() || loading}
-                className="bg-claude-primary hover:bg-claude-primary-hover disabled:bg-claude-input disabled:border disabled:border-claude-border/50 text-white font-bold rounded-2xl h-11 w-11 flex items-center justify-center shadow-[0_0_14px_rgba(168,85,247,0.2)] hover:shadow-[0_0_24px_rgba(168,85,247,0.38)] disabled:shadow-none transition-all flex-shrink-0"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
-                </svg>
-              </motion.button>
-            </div>
+        <div className="border-t border-claude-border/15 p-4 bg-claude-glass backdrop-blur-2xl z-10">
+          <div className="max-w-2xl mx-auto flex gap-2.5 items-center">
+            <input value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !loading && sendMessage()}
+              placeholder="Manda a real..."
+              disabled={loading}
+              autoFocus
+              className="flex-1 bg-claude-input/60 border border-claude-border/40 text-claude-on-surface rounded-full h-12 px-5 text-sm placeholder:text-claude-muted/30 outline-none transition-all duration-200 focus:border-claude-primary/35 focus:bg-claude-input focus:shadow-[0_0_20px_rgba(168,85,247,0.1)] disabled:opacity-40"
+              style={{ fontFamily: "'Inter', sans-serif" }}
+            />
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.93 }}
+              onClick={() => sendMessage()}
+              disabled={!input.trim() || loading}
+              className="bg-claude-primary hover:bg-claude-primary-hover disabled:bg-claude-input disabled:border disabled:border-claude-border/40 text-white rounded-full h-12 w-12 flex items-center justify-center shadow-[0_0_14px_rgba(168,85,247,0.2)] hover:shadow-[0_0_24px_rgba(168,85,247,0.38)] disabled:shadow-none transition-all flex-shrink-0"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" /><polyline points="5 12 12 5 19 12" />
+              </svg>
+            </motion.button>
           </div>
         </div>
       ) : isDone ? (
-        <div className="border-t border-claude-border/20 p-6 bg-claude-glass backdrop-blur-2xl z-10">
-          <div className="max-w-sm mx-auto grid grid-cols-2 gap-3">
-            <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
+        <div className="border-t border-claude-border/15 p-6 bg-claude-glass backdrop-blur-2xl z-10">
+          <div className="max-w-md mx-auto flex items-center justify-center gap-3">
+            <motion.button whileTap={{ scale: 0.96 }}
               onClick={() => { setVeredictData(null); setVeredictId(null); setSuggestVeredict(true) }}
-              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-claude-input border border-claude-border hover:border-claude-border-hover hover:bg-white/[0.04] transition-all group"
+              className="opt-bubble-ghost px-5 py-3 text-sm flex items-center gap-2"
             >
-              <span className="text-2xl group-hover:scale-110 transition-transform duration-200">🔄</span>
-              <span className="text-sm font-semibold text-claude-on-surface/60 group-hover:text-claude-on-surface/80">Refazer</span>
+              <span>🔄</span> Refazer
             </motion.button>
-            <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
+            <motion.button whileTap={{ scale: 0.96 }}
               onClick={() => setShowPlanModal(true)}
-              className="flex flex-col items-center gap-2 py-5 rounded-2xl bg-amber-500/5 border border-amber-500/12 hover:bg-amber-500/8 hover:border-amber-500/20 transition-all group"
+              className="opt-bubble px-6 py-3 text-sm font-semibold flex items-center gap-2"
             >
-              <span className="text-2xl group-hover:scale-110 transition-transform duration-200">💰</span>
-              <span className="text-sm font-semibold text-amber-400">Upgrade</span>
+              <span>💰</span> Upgrade
             </motion.button>
           </div>
         </div>
