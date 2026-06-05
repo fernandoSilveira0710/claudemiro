@@ -87,10 +87,30 @@ export function ChatInterface() {
   const [wizardTrack, setWizardTrack] = useState<any>(null)
   const [userPlan, setUserPlan] = useState<'PRO' | 'FLEX' | 'FREE'>('FREE')
   const [showPlanModal, setShowPlanModal] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); setShowFreeInput(false) }, [messages])
-  useEffect(() => { fetch('/api/chat').then(r => r.json()).then(d => { if (d.hasSession) { setPending(d); setStep('pending') } else setStep('mode') }).catch(() => setStep('mode')) }, [])
+
+  // Carrega a sessão pendente com timeout — nunca trava no loading.
+  useEffect(() => {
+    let done = false
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => { if (!done) { ctrl.abort(); setLoadError(true) } }, 8000)
+
+    fetch('/api/chat', { signal: ctrl.signal })
+      .then(r => r.json())
+      .then(d => {
+        done = true; clearTimeout(timer)
+        if (d.hasSession) { setPending(d); setStep('pending') } else setStep('mode')
+      })
+      .catch(() => {
+        done = true; clearTimeout(timer)
+        setLoadError(true)
+      })
+
+    return () => { clearTimeout(timer); ctrl.abort() }
+  }, [])
   useEffect(() => { fetch('/api/user/profile').then(r => r.json()).then(d => setUserPlan(d.plan || 'FREE')).catch(() => {}) }, [])
 
   const continueSession = () => {
@@ -174,20 +194,38 @@ export function ChatInterface() {
   // ═══════════════════════════════════════════
   if (step === 'loading') return (
     <div className="min-h-screen bg-claude-bg flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4">
-        <motion.div animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          className="w-20 h-20 drop-shadow-[0_0_20px_rgba(168,85,247,0.4)]">
-          <MiroAvatar />
-        </motion.div>
-        <div className="flex gap-1.5">
-          {[...Array(3)].map((_, i) => (
-            <motion.div key={i} className="w-2.5 h-2.5 rounded-full"
-              style={{ background: 'linear-gradient(135deg, #A855F7, #EC4899)' }}
-              animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.3, 0.8] }}
-              transition={{ duration: 1, delay: i * 0.12, repeat: Infinity }} />
-          ))}
+      {loadError ? (
+        <div className="flex flex-col items-center gap-5 text-center px-6">
+          <div className="w-20 h-20 drop-shadow-[0_0_20px_rgba(168,85,247,0.4)] opacity-60">
+            <ClaudemiroBot />
+          </div>
+          <div>
+            <p className="text-claude-on-surface font-semibold mb-1">Demorou demais pra carregar</p>
+            <p className="text-claude-muted text-xs max-w-[260px]">Pode ter sido a volta do pagamento ou a conexão. Recarrega que volta ao normal.</p>
+          </div>
+          <button
+            onClick={() => { window.location.href = '/chat' }}
+            className="opt-bubble px-6 py-2.5 text-sm font-semibold"
+          >
+            🔄 Recarregar
+          </button>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col items-center gap-4">
+          <motion.div animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-20 h-20 drop-shadow-[0_0_20px_rgba(168,85,247,0.4)]">
+            <ClaudemiroBot />
+          </motion.div>
+          <div className="flex gap-1.5">
+            {[...Array(3)].map((_, i) => (
+              <motion.div key={i} className="w-2.5 h-2.5 rounded-full"
+                style={{ background: 'linear-gradient(135deg, #A855F7, #EC4899)' }}
+                animate={{ opacity: [0.2, 1, 0.2], scale: [0.8, 1.3, 0.8] }}
+                transition={{ duration: 1, delay: i * 0.12, repeat: Infinity }} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 

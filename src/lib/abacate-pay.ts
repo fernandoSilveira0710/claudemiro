@@ -39,24 +39,22 @@ interface TransparentData {
 
 // ─── PIX (Checkout Transparente) ──────────────────────────
 
-/**
- * Gera PIX QR Code via Checkout Transparente.
- * Retorna brCode (copia-e-cola) e brCodeBase64 (imagem PNG).
- *
- * @param amountInReais - valor em reais (ex: 19.99)
- * @param description   - descrição da cobrança
- * @param customerEmail - email do pagador
- * @param expiresIn     - tempo de expiração em segundos (default: 1800 = 30min)
- */
+export interface PixCustomer {
+  name: string
+  email: string
+  taxId: string      // CPF/CNPJ (só dígitos)
+  cellphone: string  // telefone
+}
+
 export async function createPixPayment(
   amountInReais: number,
   description: string,
-  customerEmail: string,
-  expiresIn = 1800,
+  customer: PixCustomer,
+  expiresIn = 300, // 5 minutos
 ) {
   const amountInCents = Math.round(amountInReais * 100)
 
-  // Nova API v2: method + data wrapper
+  // Nova API v2: method + data wrapper. Customer completo evita a página hospedada.
   const data = await abacateFetch<TransparentData>('/transparents/create', {
     method: 'PIX',
     data: {
@@ -64,7 +62,10 @@ export async function createPixPayment(
       description,
       expiresIn,
       customer: {
-        email: customerEmail,
+        name: customer.name,
+        email: customer.email,
+        taxId: customer.taxId.replace(/\D/g, ''),
+        cellphone: customer.cellphone.replace(/\D/g, ''),
       },
       metadata: {
         source: 'claudemiro',
@@ -76,6 +77,20 @@ export async function createPixPayment(
     paymentId: data.id,
     qrCode: data.brCode,
     qrCodeBase64: data.brCodeBase64,
+  }
+}
+
+/**
+ * Cancela uma cobrança PIX transparente pendente.
+ * Chamado quando o usuário fecha o modal ou volta sem pagar.
+ */
+export async function cancelPixPayment(paymentId: string) {
+  try {
+    await abacateFetch(`/transparents/cancel?id=${paymentId}`, {})
+    return true
+  } catch (err) {
+    console.error('[abacate-pay] erro ao cancelar PIX:', err)
+    return false
   }
 }
 
@@ -99,13 +114,6 @@ interface SubscriptionData {
   status: string
 }
 
-/**
- * Cria checkout de assinatura (PRO mensal).
- * Redireciona usuário para página hospedada da AbacatePay.
- *
- * Nova API: usa customerId (não customer inline),
- * methods: ["CARD"] para assinaturas.
- */
 export async function createProSubscription(customerEmail: string) {
   const data = await abacateFetch<SubscriptionData>('/subscriptions/create', {
     items: [
@@ -128,18 +136,9 @@ export async function createProSubscription(customerEmail: string) {
 
 // ─── Webhook ───────────────────────────────────────────────
 
-/**
- * Chave pública HMAC fornecida pela AbacatePay para validação de webhooks.
- * https://docs.abacatepay.com/pages/webhooks
- */
 const ABACATEPAY_PUBLIC_KEY =
   't9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9'
 
-/**
- * Valida assinatura HMAC do webhook da AbacatePay.
- * Nova API v2: usa HMAC-SHA256 com digest base64 + chave pública.
- * Header: X-Webhook-Signature
- */
 export function validateWebhookSignature(
   payload: string,
   signature: string,
@@ -148,7 +147,6 @@ export function validateWebhookSignature(
   hmac.update(payload)
   const expected = hmac.digest('base64')
 
-  // timingSafeEqual para evitar timing attacks
   const A = Buffer.from(expected)
   const B = Buffer.from(signature)
   return A.length === B.length && crypto.timingSafeEqual(A, B)
