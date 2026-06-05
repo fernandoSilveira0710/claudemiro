@@ -356,8 +356,8 @@ export function ChatInterface() {
 
         <div className="max-w-2xl mx-auto px-4">
           <div className="flex justify-center pt-6 pb-4">
-            <div className="w-14 h-14 drop-shadow-[0_0_18px_rgba(168,85,247,0.3)] opacity-70">
-              <MiroAvatar />
+            <div className="w-24 h-24 claude-bot-glow">
+              <ClaudemiroBot />
             </div>
           </div>
 
