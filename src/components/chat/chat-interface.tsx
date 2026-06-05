@@ -92,7 +92,6 @@ export function ChatInterface() {
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); setShowFreeInput(false) }, [messages])
 
-  // Carrega a sessão pendente com timeout — nunca trava no loading.
   useEffect(() => {
     let done = false
     const ctrl = new AbortController()
@@ -356,7 +355,6 @@ export function ChatInterface() {
     <div className="min-h-screen bg-claude-bg flex flex-col relative">
       <ChatAtmosphere interactionCount={interactionCount} maxInteractions={20} isDone={isDone} mode={mode || 'engracado'} />
 
-      {/* ═════ HEADER ═════ */}
       <header className="border-b border-claude-border/30 p-3 flex items-center justify-between bg-claude-glass backdrop-blur-2xl sticky top-0 z-20">
         <a href="/" className="text-xs font-bold text-claude-muted hover:text-claude-on-surface transition-colors tracking-[0.05em]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
           ← CLAUDEMIRO
@@ -374,10 +372,8 @@ export function ChatInterface() {
         </div>
       </header>
 
-      {/* ═════ TUBO DE ENSAIO ═════ */}
       <ChatProgressBar interactionCount={interactionCount} maxInteractions={20} isDone={isDone} />
 
-      {/* ═════ MESSAGES ═════ */}
       <div className="flex-1 overflow-y-auto relative z-10">
         <div className="max-w-2xl mx-auto px-4">
           <div className="flex justify-center pt-6 pb-4">
@@ -497,10 +493,6 @@ export function ChatInterface() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════
-          FOOTER
-          ═══════════════════════════════════════════ */}
-
       {!isDone && suggestVeredict ? (
         <div className="border-t border-claude-border/15 p-6 bg-claude-glass backdrop-blur-2xl z-10">
           <div className="max-w-md mx-auto flex flex-col items-center gap-4">
@@ -608,7 +600,11 @@ export function ChatInterface() {
         <FinalWizard sessionId={sessionId!} plan={userPlan} socialImages={wizardImages} aiTrack={wizardTrack}
           onClose={() => setShowWizard(false)} onUpgrade={() => setShowPlanModal(true)} />
       )}
-      <PlanModal isOpen={showPlanModal} onClose={() => setShowPlanModal(false)} />
+      <PlanModal
+        isOpen={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        onPaid={() => { fetch('/api/user/profile').then(r => r.json()).then(d => setUserPlan(d.plan || 'FREE')).catch(() => {}) }}
+      />
     </div>
   )
 }

@@ -1,8 +1,7 @@
 import { createServerSupabase } from '@/lib/supabase/server'
 import {
   createPixPayment as createAbacatePix,
-  createProSubscription as createAbacateSubscription,
-  cancelPixPayment,
+  simulatePixPayment,
   type PixCustomer,
 } from '@/lib/abacate-pay'
 import { NextResponse } from 'next/server'
@@ -24,34 +23,28 @@ export async function POST(request: Request) {
     // ─── CANCELAR (usuário fechou modal / voltou sem pagar) ────────
     if (action === 'cancel') {
       if (!paymentId) return NextResponse.json({ error: 'paymentId obrigatório' }, { status: 400 })
-
       const { data: payment } = await supabase
-        .from('payments')
-        .select('id, status')
-        .eq('mercado_pago_id', paymentId)
-        .eq('user_id', user.id)
-        .single()
-
+        .from('payments').select('id, status')
+        .eq('mercado_pago_id', paymentId).eq('user_id', user.id).single()
       if (!payment) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
       if (payment.status === 'approved') return NextResponse.json({ cancelled: false, reason: 'already_paid' })
-
-      await cancelPixPayment(paymentId)
       await supabase.from('payments').update({ status: 'cancelled' }).eq('id', payment.id)
       return NextResponse.json({ cancelled: true })
     }
 
-    // ─── ASSINATURA PRO (recorrente, página hospedada via cartão) ──
-    if (type === 'subscription') {
-      const userEmail = user.email || `${user.id}@claudemiro.app`
-      const { initPoint, paymentId: subId } = await createAbacateSubscription(userEmail)
-      await supabase.from('payments').insert({
-        user_id: user.id, amount: 19.99, type: 'subscription',
-        mercado_pago_id: subId, plan: 'PRO', provider: 'abacatepay',
-      })
-      return NextResponse.json({ initPoint })
+    // ─── SIMULAR PAGAMENTO (sandbox / botão "já paguei") ────────────
+    if (action === 'simulate') {
+      if (!paymentId) return NextResponse.json({ error: 'paymentId obrigatório' }, { status: 400 })
+      const { data: payment } = await supabase
+        .from('payments').select('id, type, user_id, status')
+        .eq('mercado_pago_id', paymentId).eq('user_id', user.id).single()
+      if (!payment) return NextResponse.json({ error: 'Não encontrado' }, { status: 404 })
+
+      try { await simulatePixPayment(paymentId) } catch (e) {}
+      return NextResponse.json({ simulated: true })
     }
 
-    // ─── PIX (one_time / per_generation) — QR Code no próprio site ──
+    // ─── PIX (one_time / per_generation) ─────────────────────────────
     const price = PRICES[type as string]
     if (!price) return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 })
 
@@ -60,18 +53,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'missing_customer', message: 'Dados do pagador obrigatórios' }, { status: 422 })
     }
 
-    const { qrCode, qrCodeBase64, paymentId: pixId } = await createAbacatePix(
+    const { qrCode, qrCodeBase64, paymentId: pixId, amount } = await createAbacatePix(
       price.amount, price.desc,
       { name: c.name, email: c.email, taxId: c.taxId, cellphone: c.cellphone },
       300,
     )
 
-    await supabase.from('payments').insert({
+    const { error: insertErr } = await supabase.from('payments').insert({
       user_id: user.id, amount: price.amount, type,
-      mercado_pago_id: pixId, plan: price.plan, provider: 'abacatepay',
+      mercado_pago_id: pixId, plan: price.plan,
     })
+    if (insertErr) console.error('[payment] INSERT error:', insertErr)
 
-    return NextResponse.json({ qrCode, qrCodeBase64, paymentId: pixId, expiresIn: 300 })
+    return NextResponse.json({
+      qrCode, qrCodeBase64, paymentId: pixId,
+      amount, amountReais: price.amount, expiresIn: 300,
+    })
   } catch (err: any) {
     console.error('Payment error:', err)
     return NextResponse.json({ error: 'Falha ao gerar pagamento' }, { status: 500 })
