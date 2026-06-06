@@ -119,7 +119,7 @@ export function ChatInterface() {
     setSuggestVeredict(pending.suggestVeredict || false)
     setPending(null); setStep('chat')
   }
-  const resetSession = () => { setPending(null); setStep('mode') }
+  const resetSession = () => { setPending(null); setStep('mode'); setSuggestVeredict(false); setInteractionCount(0); setMessages([]); setSessionId(null); setVeredictData(null); setVeredictId(null) }
   const selectMode = (m: string) => { setMode(m); setStep('topics') }
   const toggleTopic = (id: string) => setBlockedTopics(p => p.includes(id) ? p.filter(t => t !== id) : [...p, id])
 

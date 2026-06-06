@@ -43,9 +43,17 @@ export async function POST(request: Request) {
           .update({ status: 'approved' })
           .eq('id', payment.id)
 
-        const newPlan = payment.type === 'subscription' ? 'PRO' : 'FLEX'
+        const isSub = payment.type === 'subscription'
+        const newPlan = isSub ? 'PRO' : 'FLEX'
+        const profileUpdate: Record<string, any> = { plan: newPlan }
+        if (!isSub) {
+          profileUpdate.flex_type = payment.type === 'one_time' ? 'one_time_monthly' : 'per_generation'
+          if (payment.type === 'one_time') {
+            profileUpdate.plan_expires_at = new Date(Date.now() + 30 * 864e5).toISOString()
+          }
+        }
         await supabase.from('profiles')
-          .update({ plan: newPlan })
+          .update(profileUpdate)
           .eq('id', payment.user_id)
       }
     }

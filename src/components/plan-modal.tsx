@@ -35,13 +35,12 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
   const [expired, setExpired] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  const isDev = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pixRef = useRef<PixData | null>(null)
   pixRef.current = pix
 
+  // Pré-preenche email do profile ao abrir
   useEffect(() => {
     if (!isOpen) return
     fetch('/api/user/profile').then(r => r.json()).then(d => {
@@ -54,6 +53,7 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
     if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null }
   }, [])
 
+  // Cancela o PIX no backend (ao sair sem pagar)
   const cancelPix = useCallback(async () => {
     const p = pixRef.current
     if (!p) return
@@ -65,6 +65,7 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
     } catch {}
   }, [])
 
+  // Fechar de vez: para timers, cancela PIX pendente e reseta
   const handleClose = useCallback(async () => {
     stopTimers()
     if (pixRef.current && !paid && !expired) { await cancelPix() }
@@ -72,6 +73,7 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
     onClose()
   }, [stopTimers, cancelPix, paid, expired, onClose])
 
+  // Se o usuário fechar a aba/voltar com o PIX aberto → tenta cancelar
   useEffect(() => {
     const onUnload = () => {
       const p = pixRef.current
@@ -86,6 +88,7 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
     return () => window.removeEventListener('beforeunload', onUnload)
   }, [paid, expired])
 
+  // Timer + polling quando o QR está visível
   useEffect(() => {
     if (view !== 'qr' || !pix) return
     setSecondsLeft(300)
@@ -102,7 +105,7 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
 
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`/api/payment-status?paymentId=${pix.paymentId}`)
+        const res = await fetch(`/api/payment/status?paymentId=${pix.paymentId}`)
         const d = await res.json()
         if (d.status === 'PAID') {
           stopTimers(); setPaid(true)
@@ -145,15 +148,30 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
     setLoading(null)
   }
 
+  // Marca como pago no sandbox e valida
   const simulatePaid = async () => {
     if (!pix) return
-    setLoading('simulate')
+    setLoading('simulate'); setFormError(null)
     try {
-      await fetch('/api/payment', {
+      const simRes = await fetch('/api/payment', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'simulate', paymentId: pix.paymentId }),
       })
-      const res = await fetch(`/api/payment-status?paymentId=${pix.paymentId}`)
+      const sim = await simRes.json()
+
+      // O simulate já pode confirmar o pagamento (ativa o plano na hora)
+      if (sim.status === 'PAID') {
+        stopTimers(); setPaid(true)
+        setTimeout(() => { if (onPaid) { onPaid(); onClose() } else { window.location.href = '/chat' } }, 1500)
+        setLoading(null); return
+      }
+      if (sim.error) {
+        setFormError(sim.message || 'Erro ao simular pagamento.')
+        setLoading(null); return
+      }
+
+      // Caso contrário, confere o status real
+      const res = await fetch(`/api/payment/status?paymentId=${pix.paymentId}`)
       const d = await res.json()
       if (d.status === 'PAID') {
         stopTimers(); setPaid(true)
@@ -161,7 +179,9 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
       } else {
         setFormError('Ainda não consta como pago. Tenta de novo em instantes.')
       }
-    } catch {}
+    } catch {
+      setFormError('Erro de conexão ao verificar o pagamento.')
+    }
     setLoading(null)
   }
 
@@ -180,8 +200,6 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
   const mm = String(Math.floor(secondsLeft / 60)).padStart(1, '0')
   const ss = String(secondsLeft % 60).padStart(2, '0')
 
-  const priceLabel = pendingType === 'one_time' ? '9,99' : '3,99'
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -192,12 +210,13 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
 
             <button onClick={handleClose} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.05] hover:bg-white/[0.1] text-[#F3E8FF]/40 hover:text-white z-10 text-sm">✕</button>
 
+            {/* ═══════════ VIEW: PLANOS ═══════════ */}
             {view === 'plans' && (
               <>
                 <h2 className="text-xl font-black text-white text-center mb-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>Escolhe teu plano</h2>
                 <p className="text-[#F3E8FF]/40 text-sm text-center mb-6">Quanto mais paga, mais pode</p>
                 <div className="space-y-3">
-                  {/* FLEX mensal */}
+                  {/* FLEX */}
                   <div className="relative p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5">
                     <div className="absolute -top-2.5 right-4 bg-purple-500 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">MELHOR VALOR</div>
                     <div className="flex items-center gap-3 mb-3">
@@ -212,7 +231,7 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
                       Pagar R$ 9,99 no PIX
                     </motion.button>
                   </div>
-                  {/* 1 Veredito */}
+                  {/* per_generation */}
                   <div className="p-5 rounded-2xl border border-amber-500/10 bg-amber-500/[0.02]">
                     <div className="flex items-center gap-3 mb-3">
                       <span className="text-3xl">🎯</span>
@@ -233,11 +252,12 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
               </>
             )}
 
+            {/* ═══════════ VIEW: FORMULÁRIO ═══════════ */}
             {view === 'form' && (
               <>
                 <button onClick={() => { setView('plans'); setFormError(null) }} className="text-[#F3E8FF]/40 hover:text-white text-xs mb-3">← voltar</button>
                 <h2 className="text-xl font-black text-white mb-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>Teus dados pro PIX</h2>
-                <p className="text-[#F3E8FF]/40 text-sm mb-5">A AbacatePay precisa disso pra gerar a cobrança de R$ {priceLabel}.</p>
+                <p className="text-[#F3E8FF]/40 text-sm mb-5">A AbacatePay precisa disso pra gerar a cobrança de R$ {pendingType === 'one_time' ? '9,99' : '3,99'}.</p>
                 <div className="space-y-3">
                   <div>
                     <label className="text-[#F3E8FF]/60 text-xs mb-1 block">Nome completo</label>
@@ -268,6 +288,7 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
               </>
             )}
 
+            {/* ═══════════ VIEW: QR CODE ═══════════ */}
             {view === 'qr' && pix && (
               <div className="text-center">
                 {paid ? (
@@ -306,12 +327,10 @@ export function PlanModal({ isOpen, onClose, onPaid }: PlanModalProps) {
                       {copied ? '✅ Copiado!' : '📋 Copiar código PIX (copia e cola)'}
                     </button>
                     {formError && <p className="text-red-400 text-xs mt-3">{formError}</p>}
-                    {isDev && (
-                      <button onClick={simulatePaid} disabled={loading !== null}
-                        className="mt-3 w-full bg-green-600/90 hover:bg-green-500 disabled:bg-green-600/40 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-                        {loading === 'simulate' ? 'Verificando...' : '✅ Já paguei (DEV)'}
-                      </button>
-                    )}
+                    <button onClick={simulatePaid} disabled={loading !== null}
+                      className="mt-3 w-full bg-green-600/90 hover:bg-green-500 disabled:bg-green-600/40 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+                      {loading === 'simulate' ? 'Verificando...' : '✅ Já paguei'}
+                    </button>
                     <div className="flex items-center justify-center gap-2 mt-3 text-[#F3E8FF]/40 text-xs">
                       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> aguardando pagamento...
                     </div>
