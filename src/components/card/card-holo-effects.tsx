@@ -247,61 +247,56 @@ export function CardHoloEffects({ rarity, className = '' }: HoloEffectsProps) {
   }
 
   if (rarity === 'GOLD') {
-    // Dourado secreto com glitter
+    // Dourado secreto com glitter — a mais premium, brilha mesmo parada
     return (
       <div
         ref={ref} onMouseMove={onMove} onMouseLeave={reset} onTouchMove={onTouch} onTouchEnd={reset}
         style={css}
         className={`absolute inset-0 z-[2] pointer-events-none rounded-3xl overflow-hidden ${className}`}
       >
+        {/* base dourada sempre visível (independe do mouse) */}
+        <div style={{
+          position:'absolute', inset:0,
+          backgroundImage: `linear-gradient(135deg, rgba(184,134,11,0.55) 0%, rgba(255,223,128,0.7) 25%, rgba(212,175,55,0.5) 50%, rgba(138,109,26,0.55) 75%, rgba(255,223,128,0.65) 100%)`,
+          backgroundSize: '200% 200%',
+          animation: 'goldShift 5s ease-in-out infinite',
+          mixBlendMode: 'color-dodge' as any,
+        }} />
         <div style={{
           position:'absolute', inset:0,
           backgroundImage: `
-            repeating-linear-gradient(110deg, rgba(89,46,80,0.5) 0%, rgba(216,183,92,0.7) 2.5%, rgb(216,183,92) 5%, rgba(216,183,92,0.7) 7.5%, rgba(14,21,46,0.5) 10%, rgba(14,21,46,0.5) 15%),
+            repeating-linear-gradient(110deg, rgba(89,46,80,0.5) 0%, rgba(216,183,92,0.85) 2.5%, rgb(255,220,120) 5%, rgba(216,183,92,0.85) 7.5%, rgba(14,21,46,0.5) 10%, rgba(14,21,46,0.5) 15%),
             repeating-linear-gradient(-45deg,
-              hsl(0,0%,10%) 0%, hsl(0,0%,10%) 1%, hsl(0,0%,10%) 1.2%,
-              hsl(0,0%,20%) 1.21%, hsl(0,0%,20%) 2.4%,
-              hsl(0,0%,35%) 2.41%, hsl(0,0%,35%) 3.6%,
-              hsl(0,0%,42.5%) 3.61%, hsl(0,0%,42.5%) 4.8%,
-              hsl(0,0%,50%) 4.81%, hsl(0,0%,50%) 6%,
-              hsl(0,0%,42.5%) 6.01%, hsl(0,0%,42.5%) 7.2%,
-              hsl(0,0%,35%) 7.21%, hsl(0,0%,35%) 8.4%,
-              hsl(0,0%,20%) 8.41%, hsl(0,0%,20%) 9.6%,
-              hsl(0,0%,10%) 9.61%, hsl(0,0%,10%) 10.8%,
-              hsl(0,0%,0%) 10.81%, hsl(0,0%,0%) 12%
+              hsl(0,0%,10%) 0%, hsl(0,0%,10%) 1.2%, hsl(0,0%,20%) 2.4%, hsl(0,0%,35%) 3.6%,
+              hsl(0,0%,42.5%) 4.8%, hsl(0,0%,50%) 6%, hsl(0,0%,42.5%) 7.2%, hsl(0,0%,35%) 8.4%,
+              hsl(0,0%,20%) 9.6%, hsl(0,0%,10%) 10.8%, hsl(0,0%,0%) 12%
             ),
             repeating-linear-gradient(45deg,
-              hsl(0,0%,10%) 0%, hsl(0,0%,10%) 1%, hsl(0,0%,10%) 1.2%,
-              hsl(0,0%,20%) 1.21%, hsl(0,0%,20%) 2.4%,
-              hsl(0,0%,35%) 2.41%, hsl(0,0%,35%) 3.6%,
-              hsl(0,0%,42.5%) 3.61%, hsl(0,0%,42.5%) 4.8%,
-              hsl(0,0%,50%) 4.81%, hsl(0,0%,50%) 6%,
-              hsl(0,0%,42.5%) 6.01%, hsl(0,0%,42.5%) 7.2%,
-              hsl(0,0%,35%) 7.21%, hsl(0,0%,35%) 8.4%,
-              hsl(0,0%,20%) 8.41%, hsl(0,0%,20%) 9.6%,
-              hsl(0,0%,10%) 9.61%, hsl(0,0%,10%) 10.8%,
-              hsl(0,0%,0%) 10.81%, hsl(0,0%,0%) 12%
+              hsl(0,0%,10%) 0%, hsl(0,0%,10%) 1.2%, hsl(0,0%,20%) 2.4%, hsl(0,0%,35%) 3.6%,
+              hsl(0,0%,42.5%) 4.8%, hsl(0,0%,50%) 6%, hsl(0,0%,42.5%) 7.2%, hsl(0,0%,35%) 8.4%,
+              hsl(0,0%,20%) 9.6%, hsl(0,0%,10%) 10.8%, hsl(0,0%,0%) 12%
             )
           `,
           backgroundBlendMode: 'color-burn, exclusion, darken',
           backgroundPosition: 'var(--mx) var(--my), calc(((var(--mx)-50%)*1.5)+50%) calc(((var(--my)-50%)*1.5)+50%), calc(((var(--mx)-50%)*1.5)+50%) calc(((var(--my)-50%)*1.5)+50%)',
           backgroundSize: '600% 600%, 210% 210%, 210% 210%',
-          filter: 'brightness(calc((var(--hyp)*0.4)+0.7)) contrast(3) saturate(0.66)',
+          filter: 'brightness(calc((var(--hyp)*0.4)+1.05)) contrast(3.2) saturate(1.4)',
+          mixBlendMode: 'color-dodge' as any,
         }} />
         {/* gold sparkles */}
         <div style={{
           position:'absolute', inset:'-10%',
           backgroundImage: `
-            radial-gradient(2.5px 2.5px at 15% 25%, rgba(255,215,0,0.9), transparent),
-            radial-gradient(2px 2px at 55% 45%, rgba(255,255,200,0.85), transparent),
-            radial-gradient(3px 3px at 75% 30%, rgba(245,200,0,0.8), transparent),
-            radial-gradient(1.5px 1.5px at 35% 70%, rgba(255,230,100,0.9), transparent),
-            radial-gradient(2.5px 2.5px at 65% 80%, rgba(255,215,0,0.75), transparent),
-            radial-gradient(2px 2px at 85% 55%, rgba(255,255,180,0.85), transparent),
-            radial-gradient(3px 3px at 20% 55%, rgba(245,200,50,0.8), transparent),
-            radial-gradient(1.5px 1.5px at 50% 15%, rgba(255,240,150,0.85), transparent)
+            radial-gradient(2.5px 2.5px at 15% 25%, rgba(255,215,0,1), transparent),
+            radial-gradient(2px 2px at 55% 45%, rgba(255,255,200,0.95), transparent),
+            radial-gradient(3px 3px at 75% 30%, rgba(245,200,0,0.9), transparent),
+            radial-gradient(1.5px 1.5px at 35% 70%, rgba(255,230,100,1), transparent),
+            radial-gradient(2.5px 2.5px at 65% 80%, rgba(255,215,0,0.85), transparent),
+            radial-gradient(2px 2px at 85% 55%, rgba(255,255,180,0.95), transparent),
+            radial-gradient(3px 3px at 20% 55%, rgba(245,200,50,0.9), transparent),
+            radial-gradient(1.5px 1.5px at 50% 15%, rgba(255,240,150,0.95), transparent)
           `,
-          mixBlendMode: 'overlay' as any,
+          mixBlendMode: 'screen' as any,
           animation: 'sparkleFloat 4s ease-in-out infinite',
         }} />
       </div>
@@ -309,15 +304,23 @@ export function CardHoloEffects({ rarity, className = '' }: HoloEffectsProps) {
   }
 
   if (rarity === 'RADIANT') {
-    // Padrão cruzado radiante
+    // Padrão cruzado radiante — iridescente, brilha mesmo parada
     return (
       <div
         ref={ref} onMouseMove={onMove} onMouseLeave={reset} onTouchMove={onTouch} onTouchEnd={reset}
         style={css}
         className={`absolute inset-0 z-[2] pointer-events-none rounded-3xl overflow-hidden ${className}`}
       >
+        {/* base iridescente sempre visível */}
         <div style={{
-          position:'absolute', inset:0, clipPath: 'inset(2.8% 4% round 2.55%/1.5%)',
+          position:'absolute', inset:0,
+          backgroundImage: `linear-gradient(135deg, rgba(255,161,158,0.5), rgba(85,178,255,0.5) 25%, rgba(130,255,213,0.5) 50%, rgba(253,170,240,0.5) 75%, rgba(148,241,255,0.5) 100%)`,
+          backgroundSize: '250% 250%',
+          animation: 'goldShift 6s ease-in-out infinite',
+          mixBlendMode: 'color-dodge' as any,
+        }} />
+        <div style={{
+          position:'absolute', inset:0,
           backgroundImage: `
             repeating-linear-gradient(55deg,
               rgb(255,161,158) 0%, rgb(85,178,255) 16%, rgb(255,199,146) 33%,
@@ -339,13 +342,26 @@ export function CardHoloEffects({ rarity, className = '' }: HoloEffectsProps) {
           backgroundBlendMode: 'exclusion, darken, color-dodge',
           backgroundPosition: 'calc(((var(--mx)-50%)*-2.5)+50%) calc(((var(--my)-50%)*-2.5)+50%), calc(((var(--mx)-50%)*1.5)+50%) calc(((var(--my)-50%)*1.5)+50%), calc(((var(--mx)-50%)*1.5)+50%) calc(((var(--my)-50%)*1.5)+50%)',
           backgroundSize: '400% 400%, 210% 210%, 210% 210%',
-          filter: 'brightness(0.95) contrast(4) saturate(0.75)',
+          filter: 'brightness(calc((var(--hyp)*0.3)+1.0)) contrast(4) saturate(1.3)',
           mixBlendMode: 'color-dodge' as any,
+        }} />
+        {/* sparkles iridescentes */}
+        <div style={{
+          position:'absolute', inset:'-10%',
+          backgroundImage: `
+            radial-gradient(2.5px 2.5px at 20% 30%, rgba(255,255,255,0.95), transparent),
+            radial-gradient(2px 2px at 60% 40%, rgba(130,255,213,0.9), transparent),
+            radial-gradient(2.5px 2.5px at 40% 70%, rgba(253,170,240,0.85), transparent),
+            radial-gradient(1.5px 1.5px at 80% 20%, rgba(148,241,255,0.95), transparent),
+            radial-gradient(2px 2px at 50% 85%, rgba(255,255,255,0.9), transparent)
+          `,
+          mixBlendMode: 'screen' as any,
+          animation: 'sparkleFloat 3.5s ease-in-out infinite',
         }} />
         {/* glow spot */}
         <div style={{
           position:'absolute', inset:0,
-          backgroundImage: `radial-gradient(farthest-corner ellipse at calc(((var(--mx))*0.5)+25%) calc(((var(--my))*0.5)+25%), rgba(255,255,255,0.5) 5%, rgba(150,150,150,0.3) 15%, rgba(0,0,0,0.6) 30%)`,
+          backgroundImage: `radial-gradient(farthest-corner ellipse at calc(((var(--mx))*0.5)+25%) calc(((var(--my))*0.5)+25%), rgba(255,255,255,0.55) 5%, rgba(150,150,150,0.3) 15%, rgba(0,0,0,0.0) 35%)`,
           backgroundSize: '350% 350%',
           mixBlendMode: 'soft-light' as any,
         }} />

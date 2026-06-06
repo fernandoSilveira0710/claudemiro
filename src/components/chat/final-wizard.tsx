@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
 import { VeredictCard } from '@/components/card/veredict-card'
+import { HoloShowcase } from '@/components/chat/holo-showcase'
 
 type Plan = 'PRO' | 'FLEX' | 'FREE'
 type FrameType = 'brilhante' | 'dourada' | 'cinza'
@@ -50,6 +51,11 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
     } catch { /* segue sem música */ }
     setLoadingTrack(false)
   }
+
+  useEffect(() => {
+    const f: FrameType = plan === 'PRO' ? 'brilhante' : plan === 'FLEX' ? 'dourada' : 'cinza'
+    setSelectedFrame(f)
+  }, [plan])
 
   useEffect(() => {
     if (plan === 'FREE') {
@@ -138,28 +144,30 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
 
           {step === 1 && !isGenerating && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-              <Bot size={80} />
-              <h2 className="text-xl font-black text-white text-center mt-4 mb-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>Escolhe a moldura</h2>
-              <p className="text-[#F3E8FF]/40 text-sm text-center mb-6">Define o estilo do teu card</p>
-              <div className="grid grid-cols-3 gap-3">
-                {frames.map(f => {
-                  const locked = f.paid && !canUseFrame(f); const isSelected = selectedFrame === f.type
-                  return (
-                    <motion.button key={f.type} whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }} onClick={() => handleFrameClick(f)}
-                      className={`relative p-4 pt-3 rounded-2xl border transition-all text-center overflow-hidden ${isSelected ? 'bg-purple-500/10 border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.2)]' : 'bg-white/[0.02] border-white/[0.08] hover:border-purple-500/30'}`}>
-                      <div className={`mx-auto mb-2 w-12 h-16 rounded-md border-2 ${f.type === 'brilhante' ? 'border-transparent bg-gradient-to-br from-purple-400 via-pink-400 to-cyan-400 shadow-[0_0_12px_rgba(168,85,247,0.5)]' : f.type === 'dourada' ? 'border-amber-400 bg-gradient-to-br from-amber-500/40 to-yellow-600/40' : 'border-gray-500 bg-gray-500/10'}`} />
-                      <span className="text-lg block">{f.icon}</span>
-                      <p className={`text-xs font-bold ${f.type === 'brilhante' ? 'bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent' : f.type === 'dourada' ? 'text-amber-400' : 'text-gray-400'}`}>{f.label}</p>
-                      <p className="text-[9px] text-[#F3E8FF]/30 mt-0.5">{f.desc}</p>
-                      <p className="text-[11px] font-bold text-white mt-1">{f.price}</p>
-                      {locked && (<div className="absolute inset-0 pointer-events-none"><div className="absolute top-3 -right-7 rotate-45 bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0D0221] text-[9px] font-black py-0.5 px-7 shadow-md">$ PAGO</div></div>)}
-                    </motion.button>
-                  )
-                })}
-              </div>
+              <Bot size={64} />
+              <h2 className="text-xl font-black text-white text-center mt-3 mb-1" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+                {plan === 'FREE' ? 'O que pode sair pra você' : 'Suas cartas premium'}
+              </h2>
+              <p className="text-[#F3E8FF]/40 text-sm text-center mb-5">
+                {plan === 'FREE' ? 'Cada geração é uma carta sorteada' : 'No seu plano, só vêm as raras ✨'}
+              </p>
+
+              {/* Showcase holográfico do plano atual */}
+              <HoloShowcase plan={plan} />
+
+              {/* Upsell pro FREE */}
+              {plan === 'FREE' && (
+                <button onClick={onUpgrade}
+                  className="w-full mt-5 p-4 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 to-purple-500/10 hover:from-amber-500/20 hover:to-purple-500/20 transition-all text-center group">
+                  <p className="text-sm font-black text-white">Quer as cartas <span className="text-amber-400">premium</span>? 👑</p>
+                  <p className="text-[11px] text-[#F3E8FF]/50 mt-0.5">Galáxia, Arco-Íris, Ouro Secreto e Radiante — desbloqueie no FLEX</p>
+                  <span className="inline-block mt-2 text-[11px] font-bold text-amber-400 group-hover:underline">Ver planos →</span>
+                </button>
+              )}
+
               <div className="flex justify-center mt-6">
                 <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => setStep(2)}
-                  className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-10 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)] text-sm">Avançar</motion.button>
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-12 rounded-2xl shadow-[0_0_20px_rgba(168,85,247,0.3)] text-sm">Avançar →</motion.button>
               </div>
             </motion.div>
           )}
@@ -267,7 +275,11 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
                 <div className="text-center py-4">
                   <Bot size={112} pulsing />
                   <div className="space-y-2 max-w-md mx-auto mt-6 min-h-[80px]">
-                    {thoughts.map((t, i) => (<motion.p key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="text-[#F3E8FF]/50 font-mono text-xs text-left">&gt; {t}</motion.p>))}
+                    {thoughts.map((t, i) => (
+                      <motion.p key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="text-[#F3E8FF]/50 font-mono text-xs text-left">
+                        &gt; {t}
+                      </motion.p>
+                    ))}
                     <motion.span animate={{ opacity: [1, 0.2, 1] }} transition={{ repeat: Infinity, duration: 0.7 }} className="text-purple-400 font-mono text-xs">▮</motion.span>
                   </div>
                 </div>

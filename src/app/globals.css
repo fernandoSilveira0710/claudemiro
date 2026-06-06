@@ -385,3 +385,9 @@
 .transform-style-3d {
   transform-style: preserve-3d;
 }
+
+/* base iridescente animada (gold/radiant) — brilha mesmo parado */
+@keyframes goldShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
