@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claudemiro — Símbolos + Efeitos</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@700;900&family=Inter:wght@400;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0A0015; color: #F3E8FF; font-family: 'Inter', sans-serif;
+    padding: 30px; display: flex; flex-direction: column; align-items: center;
+  }
+  h1 { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 2rem; margin-bottom: 4px; }
+  .sub { color: #7C6B99; font-size: 0.85rem; margin-bottom: 24px; text-align: center; }
+  .grid { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; max-width: 1200px; }
+  .card-wrap { text-align: center; }
+  .card-label {
+    font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 0.65rem;
+    margin-bottom: 8px; padding: 3px 10px; border-radius: 9999px; display: inline-block;
+    background: rgba(168,85,247,0.2); color: #C084FC; border: 1px solid rgba(168,85,247,0.4);
+  }
+  .card {
+    width: 240px; height: 340px; border-radius: 18px;
+    position: relative; cursor: pointer; overflow: hidden;
+    background: linear-gradient(160deg, #1A0A33, #0D0221);
+    border: 2px solid rgba(255,255,255,0.06);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    transition: transform 0.3s ease;
+    --mx: 50%; --my: 50%; --hyp: 0; --rx: 0deg; --ry: 0deg;
+    transform: rotateY(var(--ry)) rotateX(var(--rx));
+    transform-style: preserve-3d;
+  }
+  .card:hover { transform: rotateY(var(--ry)) rotateX(var(--rx)) scale(1.05); }
+  .card-inner {
+    position: relative; z-index: 6; padding: 18px 16px;
+    height: 100%; display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .card-emoji { font-size: 2.2rem; text-align: center; margin-bottom: 6px; }
+  .card-name { font-family: 'DM Sans', sans-serif; font-weight: 900; font-size: 0.95rem; text-align: center; }
+  .card-tier { font-size: 0.5rem; color: #7C6B99; text-align: center; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* borda */
+  .card::before {
+    content: ''; position: absolute; inset: -3px; border-radius: 18px; padding: 3px; z-index: 10;
+    background: linear-gradient(135deg, #A855F7, #EC4899, #F59E0B, #22D3EE, #A855F7);
+    background-size: 300% 300%; animation: borderRainbow 4s ease infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none;
+  }
+  @keyframes borderRainbow { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+
+  /* ═══ SÍMBOLOS SVG (máscara) ═══ */
+  .symbols-mask {
+    position: absolute; inset: 5% 8% 50% 8%; z-index: 4; pointer-events: none;
+    opacity: 0.35;
+    background-color: rgba(255,255,255,0.5);
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150'%3E%3Ctext x='15' y='25' font-size='18'%3E👑%3C/text%3E%3Ctext x='60' y='40' font-size='22'%3E⚡%3C/text%3E%3Ctext x='110' y='20' font-size='16'%3E💻%3C/text%3E%3Ctext x='160' y='35' font-size='20'%3E🎮%3C/text%3E%3Ctext x='30' y='60' font-size='14'%3E🎯%3C/text%3E%3Ctext x='80' y='55' font-size='18'%3E💎%3C/text%3E%3Ctext x='140' y='60' font-size='16'%3E🔥%3C/text%3E%3Ctext x='50' y='80' font-size='20'%3E🌟%3C/text%3E%3Ctext x='100' y='85' font-size='14'%3E🔮%3C/text%3E%3Ctext x='150' y='80' font-size='18'%3E💿%3C/text%3E%3Ctext x='20' y='100' font-size='16'%3E🎵%3C/text%3E%3Ctext x='70' y='105' font-size='22'%3E✨%3C/text%3E%3Ctext x='130' y='100' font-size='14'%3E💡%3C/text%3E%3Ctext x='40' y='120' font-size='18'%3E🚀%3C/text%3E%3Ctext x='90' y='125' font-size='16'%3E🏆%3C/text%3E%3Ctext x='160' y='120' font-size='20'%3E⚡%3C/text%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 150'%3E%3Ctext x='15' y='25' font-size='18'%3E👑%3C/text%3E%3Ctext x='60' y='40' font-size='22'%3E⚡%3C/text%3E%3Ctext x='110' y='20' font-size='16'%3E💻%3C/text%3E%3Ctext x='160' y='35' font-size='20'%3E🎮%3C/text%3E%3Ctext x='30' y='60' font-size='14'%3E🎯%3C/text%3E%3Ctext x='80' y='55' font-size='18'%3E💎%3C/text%3E%3Ctext x='140' y='60' font-size='16'%3E🔥%3C/text%3E%3Ctext x='50' y='80' font-size='20'%3E🌟%3C/text%3E%3Ctext x='100' y='85' font-size='14'%3E🔮%3C/text%3E%3Ctext x='150' y='80' font-size='18'%3E💿%3C/text%3E%3Ctext x='20' y='100' font-size='16'%3E🎵%3C/text%3E%3Ctext x='70' y='105' font-size='22'%3E✨%3C/text%3E%3Ctext x='130' y='100' font-size='14'%3E💡%3C/text%3E%3Ctext x='40' y='120' font-size='18'%3E🚀%3C/text%3E%3Ctext x='90' y='125' font-size='16'%3E🏆%3C/text%3E%3Ctext x='160' y='120' font-size='20'%3E⚡%3C/text%3E%3C/svg%3E");
+    mask-size: contain;
+    -webkit-mask-size: contain;
+    mask-repeat: repeat;
+    -webkit-mask-repeat: repeat;
+    animation: symbolShine 3s ease-in-out infinite;
+  }
+  @keyframes symbolShine {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 0.5; }
+  }
+
+  /* ═══ GLARE ═══ */
+  .glare {
+    position: absolute; inset: 0; z-index: 5; pointer-events: none;
+    background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(222,245,250,0.6) 5%, rgba(255,255,255,0.2) 15%, rgba(0,0,0,0.5) 80%);
+  }
+
+  .legend { margin-top: 30px; font-size: 0.7rem; color: #7C6B99; text-align: center; max-width: 600px; }
+</style>
+</head>
+<body>
+
+<h1>🎴 Claudemiro — Símbolos + Efeitos</h1>
+<p class="sub">Os símbolos brilham com o mouse — estilo Pokémon Reverse Holo!</p>
+
+<div class="grid">
+  <div class="card-wrap">
+    <span class="card-label">💿 Reverse Holo (com símbolos!)</span>
+    <div class="card" onmousemove="track(event,this)" onmouseleave="reset(this)">
+      <div class="symbols-mask"></div>
+      <div class="glare"></div>
+      <div class="card-inner">
+        <div class="card-emoji">💿</div>
+        <div class="card-name">Reverse Holo</div>
+        <div class="card-tier">Símbolos + foil + glare</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">👑⚡💻🎮🎯💎🔥🌟🔮💿🎵✨💡🚀🏆 — símbolos do Claudemiro que brilham como foil!</div>
+
+<script>
+function clamp(v,mn,mx){return Math.max(mn,Math.min(mx,v))}
+function track(e,card){
+  var r=card.getBoundingClientRect();
+  var px=clamp(((e.clientX-r.left)/r.width)*100,0,100);
+  var py=clamp(((e.clientY-r.top)/r.height)*100,0,100);
+  var cx=px-50,cy=py-50;
+  card.style.setProperty('--mx',px+'%');
+  card.style.setProperty('--my',py+'%');
+  card.style.setProperty('--hyp',(Math.sqrt(cx*cx+cy*cy)/50).toFixed(2));
+  card.style.setProperty('--rx',(-cy/3).toFixed(1)+'deg');
+  card.style.setProperty('--ry',(cx/3).toFixed(1)+'deg');
+}
+function reset(card){
+  card.style.setProperty('--mx','50%');
+  card.style.setProperty('--my','50%');
+  card.style.setProperty('--hyp','0');
+  card.style.setProperty('--rx','0deg');
+  card.style.setProperty('--ry','0deg');
+}
+</script>
+
+</body>
+</html>

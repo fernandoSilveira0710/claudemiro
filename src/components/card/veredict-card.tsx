@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent, type TouchEvent } from 'react'
 import { motion } from 'framer-motion'
+import { CardHoloEffects } from './card-holo-effects'
+import { rollRarity, RARITIES, type CardRarity } from '@/lib/card-rarity'
 
 interface NetworkHighlight { platform: string; icon: string; label: string; value: string }
 interface VeredictCardProps {
@@ -24,82 +26,146 @@ interface VeredictCardProps {
     profiles?: { username?: string; display_name?: string; avatar_url?: string }
   }
   compact?: boolean
+  plan?: 'FREE' | 'FLEX' | 'PRO'
 }
 
-const FRAME_STYLES: Record<string, { ring: string; glow: string; tag: string; tagText: string }> = {
-  brilhante: {
-    ring: 'p-[3px] bg-gradient-to-br from-purple-400 via-pink-400 to-cyan-400',
-    glow: 'shadow-[0_0_40px_rgba(168,85,247,0.4)]',
-    tag: 'bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400',
-    tagText: 'BRILHANTE',
-  },
-  dourada: {
-    ring: 'p-[3px] bg-gradient-to-br from-amber-300 via-yellow-500 to-amber-600',
-    glow: 'shadow-[0_0_30px_rgba(245,158,11,0.35)]',
-    tag: 'bg-gradient-to-r from-amber-300 to-yellow-600',
-    tagText: 'DOURADA',
-  },
-  cinza: {
-    ring: 'p-[2px] bg-gradient-to-br from-gray-500 to-gray-700',
-    glow: 'shadow-[0_0_20px_rgba(0,0,0,0.3)]',
-    tag: 'bg-gray-600',
-    tagText: 'FREE',
-  },
-}
+function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
 
-export function VeredictCard({ veredict, compact }: VeredictCardProps) {
-  const frame = FRAME_STYLES[veredict.frame_type || 'cinza']
+export function VeredictCard({ veredict, compact, plan = 'FREE' }: VeredictCardProps) {
   const primary = veredict.niche_colors?.primary || '#8B5CF6'
   const secondary = veredict.niche_colors?.secondary || '#EC4899'
   const name = veredict.user_name || veredict.profiles?.display_name || ''
   const cardImg = veredict.card_image_url || veredict.base_image_url
   const highlights = (veredict.network_highlights || []).filter(h => h.value && h.value !== 'null')
+  const isFlex = plan === 'FLEX' || plan === 'PRO'
+
+  // Sorteia raridade (estável durante a sessão)
+  const rarity = useMemo(() => rollRarity(plan), [plan])
+  const rarityInfo = RARITIES[rarity]
+
+  // Mouse tracking 3D
+  const [tilt, setTilt] = useState({ rx: '0deg', ry: '0deg', s: '1' })
+  const cardRef = useRef<HTMLDivElement>(null)
+  const raf = useRef<number | null>(null)
+
+  const onMove = useCallback((e: MouseEvent) => {
+    const el = cardRef.current; if (!el) return
+    if (raf.current) cancelAnimationFrame(raf.current)
+    raf.current = requestAnimationFrame(() => {
+      const r = el.getBoundingClientRect()
+      const cx = clamp(((e.clientX - r.left) / r.width) * 100 - 50, -50, 50)
+      const cy = clamp(((e.clientY - r.top) / r.height) * 100 - 50, -50, 50)
+      setTilt({ rx: `${-cy / 3}deg`, ry: `${cx / 3}deg`, s: '1.03' })
+    })
+  }, [])
+
+  const onLeave = useCallback(() => setTilt({ rx: '0deg', ry: '0deg', s: '1' }), [])
+
+  const onTouch = useCallback((e: TouchEvent) => {
+    e.preventDefault()
+    const el = cardRef.current; if (!el) return
+    const t = e.touches[0]
+    const r = el.getBoundingClientRect()
+    const cx = clamp(((t.clientX - r.left) / r.width) * 100 - 50, -50, 50)
+    const cy = clamp(((t.clientY - r.top) / r.height) * 100 - 50, -50, 50)
+    if (raf.current) cancelAnimationFrame(raf.current)
+    raf.current = requestAnimationFrame(() => setTilt({ rx: `${-cy / 3}deg`, ry: `${cx / 3}deg`, s: '1.03' }))
+  }, [])
+
+  useEffect(() => () => { if (raf.current) cancelAnimationFrame(raf.current) }, [])
+
+  // Define cor da borda baseada na raridade
+  const borderGradient = isFlex
+    ? 'linear-gradient(135deg, #A855F7, #EC4899, #F59E0B, #22D3EE, #A855F7)'
+    : 'linear-gradient(135deg, #7C6B99, #5B4F73)'
+
+  const glowShadow = isFlex
+    ? '0 0 30px rgba(168,85,247,0.3), 0 0 60px rgba(236,72,153,0.15), 0 0 90px rgba(245,158,11,0.08), 0 10px 40px rgba(0,0,0,0.5)'
+    : '0 10px 40px rgba(0,0,0,0.6)'
 
   return (
     <div className="w-full flex flex-col items-center gap-5">
-
-      {/* ─── A FIGURINHA (imagem Nano Banana + moldura do plano) ─── */}
+      {/* ═══════ CARD ═══════ */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className={`relative rounded-3xl ${frame.ring} ${frame.glow} w-full max-w-sm`}
+        className="relative w-full max-w-sm"
       >
-        {veredict.frame_type === 'brilhante' && (
-          <motion.div
-            className="absolute inset-0 rounded-3xl opacity-50 pointer-events-none"
-            style={{ background: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)' }}
-            animate={{ backgroundPosition: ['200% 0', '-200% 0'] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-          />
-        )}
-        <div className="rounded-[21px] overflow-hidden bg-[#0D0221] relative">
-          <div className={`absolute top-3 left-3 z-10 ${frame.tag} text-[#0D0221] text-[9px] font-black px-2 py-0.5 rounded-full`}>
-            {frame.tagText}
-          </div>
-          {cardImg ? (
-            <img src={cardImg} alt={veredict.veredict_badge} className="w-full aspect-[9/16] object-cover" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="w-full aspect-[9/16] flex items-center justify-center" style={{ background: `linear-gradient(145deg, ${primary}, ${secondary})` }}>
-              <div className="text-center text-white/60">
-                <div className="text-5xl mb-3">🤖</div>
-                <p className="text-sm">Gerando a figurinha...</p>
-              </div>
-            </div>
+        <div
+          ref={cardRef}
+          onMouseMove={onMove}
+          onMouseLeave={onLeave}
+          onTouchMove={onTouch}
+          onTouchEnd={onLeave}
+          style={{
+            transform: `rotateY(${tilt.ry}) rotateX(${tilt.rx}) scale(${tilt.s})`,
+            transformStyle: 'preserve-3d',
+            transition: 'transform 0.2s ease-out, box-shadow 0.4s ease',
+            boxShadow: glowShadow,
+          }}
+          className="relative rounded-[22px] overflow-hidden bg-[#0D0221] border-2 border-white/5"
+        >
+          {/* Borda arco-íris (só FLEX) */}
+          {isFlex && (
+            <div
+              className="absolute inset-0 rounded-[22px] pointer-events-none z-20"
+              style={{
+                background: borderGradient,
+                backgroundSize: '300% 300%',
+                animation: 'borderRainbow 5s ease infinite',
+                mask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                maskComposite: 'exclude',
+                WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                WebkitMaskComposite: 'xor',
+                padding: '3px', inset: '-3px', borderRadius: '22px',
+              }}
+            />
           )}
+
+          {/* Camadas holográficas */}
+          <CardHoloEffects rarity={rarity} />
+
+          {/* Badge */}
+          <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5">
+            <span
+              className="text-[#0D0221] text-[9px] font-black px-2.5 py-0.5 rounded-full"
+              style={{
+                background: isFlex
+                  ? 'linear-gradient(135deg, #A855F7, #EC4899)'
+                  : '#7C6B99',
+              }}
+            >
+              {isFlex ? rarityInfo.emoji + ' ' + rarityInfo.label : 'FREE'}
+            </span>
+          </div>
+
+          {/* Imagem / placeholder */}
+          <div className="relative z-[3]">
+            {cardImg ? (
+              <img src={cardImg} alt={veredict.veredict_badge} className="w-full aspect-[9/16] object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-full aspect-[9/16] flex items-center justify-center" style={{ background: `linear-gradient(145deg, ${primary}40, ${secondary}40)` }}>
+                <div className="text-center text-white/50">
+                  <div className="text-5xl mb-3">{rarityInfo.emoji}</div>
+                  <p className="text-sm font-semibold">{rarityInfo.label}</p>
+                  {isFlex && <p className="text-xs mt-1 opacity-60">Carta rara — efeitos ativos</p>}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </motion.div>
 
+      {/* ═══════ CONTEÚDO ═══════ */}
       {compact && (
         <p className="text-center text-white font-black text-lg">{veredict.veredict_badge}</p>
       )}
 
       {!compact && (
         <>
-          {/* ─── BADGE ─── */}
           {veredict.veredict_badge && (
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }}
-              className="text-center">
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }} className="text-center">
               <span className="inline-block px-5 py-2 rounded-full text-white font-black text-lg"
                 style={{ background: `${primary}30`, border: `1px solid ${primary}50` }}>
                 {veredict.veredict_badge}
@@ -110,27 +176,22 @@ export function VeredictCard({ veredict, compact }: VeredictCardProps) {
             </motion.div>
           )}
 
-          {/* ─── OPINIÃO FINAL do Claudemiro (destaque) ─── */}
           {veredict.final_opinion && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
               className="w-full max-w-md relative rounded-2xl p-5 border"
               style={{ background: `${primary}12`, borderColor: `${primary}30` }}>
               <span className="absolute -top-3 left-4 text-2xl">💬</span>
-              <p className="text-white text-[15px] leading-relaxed font-medium italic">
-                "{veredict.final_opinion}"
-              </p>
+              <p className="text-white text-[15px] leading-relaxed font-medium italic">"{veredict.final_opinion}"</p>
               <p className="text-[#F3E8FF]/30 text-[10px] text-right mt-2">— Claudemiro</p>
             </motion.div>
           )}
 
-          {/* ─── RESUMO ─── */}
           {veredict.veredict_text && (
             <div className="w-full max-w-md bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
               <p className="text-[#F3E8FF]/70 text-sm leading-relaxed whitespace-pre-wrap">{veredict.veredict_text}</p>
             </div>
           )}
 
-          {/* ─── DESTAQUES DAS REDES (ícones) ─── */}
           {highlights.length > 0 && (
             <div className="w-full max-w-md grid grid-cols-1 gap-2">
               {highlights.map((h, i) => (
@@ -144,13 +205,10 @@ export function VeredictCard({ veredict, compact }: VeredictCardProps) {
             </div>
           )}
 
-          {/* ─── MÚSICA ─── */}
           {veredict.music_track && (
-            <a
-              href={veredict.music_track.spotifyUrl || `https://open.spotify.com/search/${encodeURIComponent(`${veredict.music_track.name} ${veredict.music_track.artist}`)}`}
+            <a href={veredict.music_track.spotifyUrl || `https://open.spotify.com/search/${encodeURIComponent(`${veredict.music_track.name} ${veredict.music_track.artist}`)}`}
               target="_blank" rel="noopener noreferrer"
-              className="w-full max-w-md flex items-center gap-3 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 rounded-xl p-3 transition-colors"
-            >
+              className="w-full max-w-md flex items-center gap-3 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 rounded-xl p-3 transition-colors">
               <span className="text-2xl">🎵</span>
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold text-sm truncate">{veredict.music_track.name}</p>
@@ -160,7 +218,6 @@ export function VeredictCard({ veredict, compact }: VeredictCardProps) {
             </a>
           )}
 
-          {/* ─── TAGS / NÍVEIS ─── */}
           {veredict.tags && veredict.tags.length > 0 && (
             <div className="w-full max-w-md space-y-2">
               {veredict.tags.map((tag, i) => (
@@ -177,7 +234,6 @@ export function VeredictCard({ veredict, compact }: VeredictCardProps) {
             </div>
           )}
 
-          {/* ─── HASHTAG ─── */}
           <p className="text-[#F3E8FF]/30 text-sm">#ClaudemiroMeViu{name ? ` · ${name}` : ''}</p>
         </>
       )}

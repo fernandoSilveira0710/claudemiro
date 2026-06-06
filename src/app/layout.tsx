@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { DM_Sans, Inter } from "next/font/google"
 import { Toaster } from "@/components/ui/sonner"
+import { AppTabs } from "@/components/app-tabs"
 import "./globals.css"
 
 const dmSans = DM_Sans({
@@ -50,6 +51,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[#0D0221]">
         {children}
+        <AppTabs />
         <Toaster richColors closeButton position="top-center" />
       </body>
     </html>
