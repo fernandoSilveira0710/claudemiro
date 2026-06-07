@@ -57,12 +57,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Falha ao gerar veredito. Tente novamente.', raw: resultRaw }, { status: 500 })
   }
 
-  // Salvar no banco
+  // Salvar no banco com TODOS os novos campos
   const { data: saved } = await supabase
     .from('veredits')
     .insert({
       user_id: user.id,
       mode,
+      // Campos existentes
       veredict_text: veredict.veredict_text,
       veredict_badge: veredict.veredict_badge,
       tags: veredict.tags,
@@ -73,6 +74,18 @@ export async function POST(request: Request) {
       sensitive_topics: sensitiveTopics,
       profession_label: veredict.profession_label,
       tips: veredict.tips,
+      final_opinion: veredict.final_opinion,
+      network_highlights: veredict.network_highlights,
+      user_name: veredict.user_name,
+      // NOVOS campos
+      main_trait: veredict.main_trait,
+      overall: veredict.overall,
+      skills: veredict.skills,
+      hashtags: veredict.hashtags,
+      summary_short: veredict.summary_short,
+      personal_map: veredict.personal_map,
+      image_style: veredict.image_style,
+      image_brief: veredict.image_brief,
     })
     .select()
     .single()
@@ -80,6 +93,5 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ...veredict,
     veredict_id: saved?.id,
-    nano_banana_prompt: veredict.nano_banana_prompt,
   })
 }

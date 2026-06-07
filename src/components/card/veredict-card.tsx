@@ -4,17 +4,27 @@ import { useState, useRef, useCallback, useEffect, useMemo, type MouseEvent, typ
 import { motion } from 'framer-motion'
 import { CardHoloEffects } from './card-holo-effects'
 import { rollRarity, RARITIES, type CardRarity } from '@/lib/card-rarity'
+import { ReactionButtons } from './reaction-buttons'
+import { PersonalMap } from './personal-map'
 
+interface MapAxis { axis: string; value: number; comment?: string }
+interface Skill { name: string; emoji: string; value: number }
 interface NetworkHighlight { platform: string; icon: string; label: string; value: string }
 interface VeredictCardProps {
   veredict: {
     id?: string
+    main_trait?: string
     veredict_badge: string
     veredict_text: string
+    overall?: number
     final_opinion?: string
     card_image_url?: string
     base_image_url?: string
     frame_type?: 'brilhante' | 'dourada' | 'cinza'
+    skills?: Skill[]
+    hashtags?: string[]
+    summary_short?: string
+    personal_map?: MapAxis[]
     tags?: { name: string; emoji: string; percentage: number }[]
     niche?: string
     niche_colors?: { primary: string; secondary: string; accent: string }
@@ -24,6 +34,8 @@ interface VeredictCardProps {
     profession_label?: string
     tips?: string[]
     profiles?: { username?: string; display_name?: string; avatar_url?: string }
+    likes_count?: number
+    dislikes_count?: number
   }
   compact?: boolean
   plan?: 'FREE' | 'FLEX' | 'PRO'
@@ -164,6 +176,32 @@ export function VeredictCard({ veredict, compact, plan = 'FREE' }: VeredictCardP
 
       {!compact && (
         <>
+          {/* ── main_trait + overall estilo FIFA ── */}
+          {veredict.main_trait && (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+              className="text-center">
+              <h2 className="text-3xl font-black text-white tracking-tight">{veredict.main_trait}</h2>
+              {veredict.overall && (
+                <div className="inline-flex items-center gap-2 mt-1 px-4 py-1.5 rounded-full"
+                  style={{ background: `${primary}18`, border: `1px solid ${primary}30` }}>
+                  <span className="text-[#F3E8FF]/40 text-[10px] font-bold uppercase tracking-widest">Overall</span>
+                  <span className="text-white font-black text-2xl tabular-nums leading-none"
+                    style={{ color: veredict.overall >= 85 ? '#22C55E' : veredict.overall >= 70 ? '#F59E0B' : '#EF4444' }}>
+                    {veredict.overall}
+                  </span>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ── summary_short ── */}
+          {veredict.summary_short && (
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.25 }}
+              className="text-[#F3E8FF]/60 text-sm text-center italic max-w-sm leading-relaxed">
+              {veredict.summary_short}
+            </motion.p>
+          )}
+
           {veredict.veredict_badge && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.3, type: 'spring' }} className="text-center">
               <span className="inline-block px-5 py-2 rounded-full text-white font-black text-lg"
@@ -190,6 +228,54 @@ export function VeredictCard({ veredict, compact, plan = 'FREE' }: VeredictCardP
             <div className="w-full max-w-md bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4">
               <p className="text-[#F3E8FF]/70 text-sm leading-relaxed whitespace-pre-wrap">{veredict.veredict_text}</p>
             </div>
+          )}
+
+          {/* ── skills (estilo FIFA) ── */}
+          {veredict.skills && veredict.skills.length > 0 && (
+            <div className="w-full max-w-md space-y-2">
+              <h3 className="text-[#F3E8FF]/40 text-xs font-bold uppercase tracking-widest">Skills</h3>
+              {veredict.skills.map((skill, i) => (
+                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 + i * 0.08 }} className="flex items-center gap-2">
+                  <span className="text-lg">{skill.emoji}</span>
+                  <span className="text-[#F3E8FF]/80 font-semibold w-28 text-sm truncate">{skill.name}</span>
+                  <div className="flex-1 bg-white/[0.06] rounded-full h-2.5 overflow-hidden">
+                    <motion.div className="h-full rounded-full"
+                      style={{ background: `linear-gradient(to right, ${primary}, ${secondary})` }}
+                      initial={{ width: 0 }} animate={{ width: `${skill.value}%` }}
+                      transition={{ delay: 0.5 + i * 0.1, duration: 1 }} />
+                  </div>
+                  <span className="text-white font-bold text-xs w-9 text-right tabular-nums">{skill.value}</span>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* ── hashtags ── */}
+          {veredict.hashtags && veredict.hashtags.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-2 max-w-md">
+              {veredict.hashtags.map((tag, i) => (
+                <motion.span key={i} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.65 + i * 0.05 }}
+                  className="text-[#F3E8FF]/50 text-xs font-mono bg-white/[0.03] border border-white/[0.06] rounded-full px-3 py-1">
+                  {tag}
+                </motion.span>
+              ))}
+            </div>
+          )}
+
+          {/* ── personal map ── */}
+          {veredict.personal_map && veredict.personal_map.length > 0 && (
+            <PersonalMap data={veredict.personal_map} primary={primary} secondary={secondary} />
+          )}
+
+          {/* ── reactions ── */}
+          {veredict.id && (
+            <ReactionButtons
+              veredictId={veredict.id}
+              initialLikes={veredict.likes_count || 0}
+              initialDislikes={veredict.dislikes_count || 0}
+            />
           )}
 
           {highlights.length > 0 && (
