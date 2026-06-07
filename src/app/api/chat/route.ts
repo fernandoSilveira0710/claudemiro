@@ -2,6 +2,8 @@ import { createServerSupabase } from '@/lib/supabase/server'
 import { chatCompletion } from '@/lib/ai'
 import { scanUserData, ScannedUserData } from '@/lib/scanner'
 import { buildVeredictPrompt } from '@/lib/card-generator'
+import { generateCardImage } from '@/lib/gemini-image'
+import { buildImagePrompt, type ImageBrief, type ImageStyle } from '@/lib/image-prompt-builder'
 import { buildSlots, pickNextSlot, slotInstructions, AskedSlot } from '@/lib/coverage-planner'
 import { NextResponse } from 'next/server'
 
@@ -416,13 +418,48 @@ export async function POST(req: Request) {
       tags: veredict.tags, niche: veredict.niche, niche_colors: veredict.niche_colors, profession_label: veredict.profession_label, tips: veredict.tips,
       frame_type: frameType || 'cinza', base_image_url: baseImageUrl || null,
       music_track: track || veredict.music_track || null,
+      main_trait: veredict.main_trait, overall: veredict.overall, skills: veredict.skills,
+      hashtags: veredict.hashtags, summary_short: veredict.summary_short, personal_map: veredict.personal_map,
+      image_style: veredict.image_style, image_brief: veredict.image_brief,
     }).select().single()
+
+    // Gera a imagem do card via Gemini (não bloqueia o veredito se falhar)
+    let cardImageUrl: string | null = null
+    if (saved?.id) {
+      try {
+        const style: ImageStyle = (veredict.image_style as ImageStyle) || 'engracado'
+        const brief: ImageBrief = (veredict.image_brief as ImageBrief) || {}
+        const { prompt } = buildImagePrompt({
+          data: s.scanned_data || {},
+          brief,
+          style,
+          hasReferenceImage: !!baseImageUrl,
+        })
+        const img = await generateCardImage(prompt, baseImageUrl || undefined)
+        const buffer = Buffer.from(img.base64, 'base64')
+        const fileName = `cards/${user.id}/${saved.id}.png`
+        const { error: upErr } = await supabase.storage
+          .from('cards')
+          .upload(fileName, buffer, { contentType: 'image/png', upsert: true })
+        if (!upErr) {
+          const { data: pub } = supabase.storage.from('cards').getPublicUrl(fileName)
+          cardImageUrl = pub.publicUrl
+          await supabase.from('veredits').update({
+            card_image_url: cardImageUrl,
+            image_source: baseImageUrl ? 'network' : 'generated',
+            image_prompt: prompt,
+          }).eq('id', saved.id)
+        }
+      } catch (e) {
+        console.error('Gemini card image failed:', e)
+      }
+    }
     // marca geração pro gate temporal
     await supabase.from('profiles').update({ last_generation_at: new Date().toISOString() }).eq('id', user.id)
-    const vmsg = `�� *VEREDITO*\n\n${veredict.veredict_text}\n\n��️ ${veredict.veredict_badge || ''}`
+    const vmsg = `🔮 *VEREDITO*\n\n${veredict.veredict_text}\n\n🏷️ ${veredict.veredict_badge || ''}`
     msgs.push({ role: 'claudemiro', content: vmsg, veredict: true })
     await supabase.from('chat_sessions').update({ phase: 'done', status: 'completed', messages: msgs }).eq('id', sessionId)
-    return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, messages: msgs })
+    return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, card_image_url: cardImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, messages: msgs })
   }
 
   const { data: s } = await supabase.from('chat_sessions').select('*')
