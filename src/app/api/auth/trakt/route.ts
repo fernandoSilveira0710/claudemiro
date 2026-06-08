@@ -1,6 +1,8 @@
 import { createServerSupabase } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+const TRAKT_API = 'https://api.trakt.tv'
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
@@ -8,67 +10,66 @@ export async function GET(request: Request) {
   const error = searchParams.get('error')
 
   if (error || !code) {
-    return NextResponse.redirect(new URL('/connect?error=strava', process.env.NEXT_PUBLIC_APP_URL))
+    return NextResponse.redirect(new URL('/connect?error=trakt', process.env.NEXT_PUBLIC_APP_URL))
   }
 
-  const tokenRes = await fetch('https://www.strava.com/oauth/token', {
+  const tokenRes = await fetch(`${TRAKT_API}/oauth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      client_id: process.env.STRAVA_CLIENT_ID,
-      client_secret: process.env.STRAVA_CLIENT_SECRET,
       code,
+      client_id: process.env.TRAKT_CLIENT_ID,
+      client_secret: process.env.TRAKT_CLIENT_SECRET,
+      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/trakt/callback`,
       grant_type: 'authorization_code',
     }),
   })
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(new URL('/connect?error=strava_token', process.env.NEXT_PUBLIC_APP_URL))
+    return NextResponse.redirect(new URL('/connect?error=trakt_token', process.env.NEXT_PUBLIC_APP_URL))
   }
 
   const tokens = await tokenRes.json()
-  const athlete = tokens.athlete
+  const headers = {
+    'Content-Type': 'application/json',
+    'trakt-api-version': '2',
+    'trakt-api-key': process.env.TRAKT_CLIENT_ID!,
+    Authorization: `Bearer ${tokens.access_token}`,
+  }
 
-  // stats do atleta (recent_*_totals ~ últimas 4 semanas)
-  let raw: Record<string, unknown> = { athlete }
+  let username = ''
+  let raw: Record<string, unknown> = {}
   try {
-    const statsRes = await fetch(`https://www.strava.com/api/v3/athletes/${athlete?.id}/stats`, {
-      headers: { Authorization: `Bearer ${tokens.access_token}` },
-    })
+    const meRes = await fetch(`${TRAKT_API}/users/me`, { headers })
+    const me = meRes.ok ? await meRes.json() : {}
+    username = me?.username || ''
+
+    const statsRes = await fetch(`${TRAKT_API}/users/me/stats`, { headers })
     if (statsRes.ok) {
       const s = await statsRes.json()
-      // soma run + ride + swim para "recent" e "ytd"
-      const sumRecent = ['recent_run_totals', 'recent_ride_totals', 'recent_swim_totals']
-        .map(k => s[k]).filter(Boolean)
-      const sumYtd = ['ytd_run_totals', 'ytd_ride_totals', 'ytd_swim_totals']
-        .map(k => s[k]).filter(Boolean)
       raw = {
-        athlete: { id: athlete?.id, username: athlete?.username, firstname: athlete?.firstname },
-        recent: {
-          count: sumRecent.reduce((a, t) => a + (t.count || 0), 0),
-          distance_m: sumRecent.reduce((a, t) => a + (t.distance || 0), 0),
-          moving_time_s: sumRecent.reduce((a, t) => a + (t.moving_time || 0), 0),
-        },
-        ytd: {
-          count: sumYtd.reduce((a, t) => a + (t.count || 0), 0),
-          distance_m: sumYtd.reduce((a, t) => a + (t.distance || 0), 0),
+        username,
+        stats: {
+          movies_watched: s?.movies?.watched || 0,
+          episodes_watched: s?.episodes?.watched || 0,
+          shows_watched: s?.shows?.watched || 0,
         },
       }
     }
-  } catch { /* segue com athlete só */ }
+  } catch { /* segue */ }
 
   const supabase = await createServerSupabase()
   await supabase.from('social_connections').upsert({
     user_id: state,
-    platform: 'strava',
+    platform: 'trakt',
     access_token: tokens.access_token,
     refresh_token: tokens.refresh_token,
-    token_expires_at: tokens.expires_at ? new Date(tokens.expires_at * 1000).toISOString() : null,
-    platform_user_id: String(athlete?.id || ''),
-    platform_username: athlete?.username || `${athlete?.firstname || ''}`.trim(),
+    token_expires_at: tokens.created_at && tokens.expires_in
+      ? new Date((tokens.created_at + tokens.expires_in) * 1000).toISOString() : null,
+    platform_username: username,
     raw_data: raw,
     last_synced_at: new Date().toISOString(),
   }, { onConflict: 'user_id,platform' })
 
-  return NextResponse.redirect(new URL('/connect?success=strava', process.env.NEXT_PUBLIC_APP_URL))
+  return NextResponse.redirect(new URL('/connect?success=trakt', process.env.NEXT_PUBLIC_APP_URL))
 }

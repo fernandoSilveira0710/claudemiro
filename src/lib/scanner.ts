@@ -10,12 +10,11 @@ export interface ScannedUserData {
     profile: { personaname: string; avatarfull: string }
     games: { name: string; playtime_forever: number; playtime_2weeks?: number }[]
   }
-  strava?: {
-    recent?: { count: number; distance_m: number; moving_time_s: number }
-    ytd?: { count: number; distance_m: number }
-  }
   trakt?: {
     stats?: { movies_watched: number; episodes_watched: number; shows_watched: number }
+  }
+  hardcover?: {
+    stats?: { books_read: number }
   }
   [platform: string]: any
 }

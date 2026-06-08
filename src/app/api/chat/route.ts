@@ -78,11 +78,6 @@ function digest(data: any): string {
     const recentArtists = [...new Set(data.spotify.recentlyPlayed.map((t: any) => t.artist).filter(Boolean))].slice(0, 6)
     L.push(`[SPOTIFY RECENTE] Ouviu por último: ${recentArtists.join(', ')}`)
   }
-  if (data.strava?.recent) {
-    const km = Math.round((data.strava.recent.distance_m || 0) / 1000)
-    const min = Math.round((data.strava.recent.moving_time_s || 0) / 60)
-    L.push(`[STRAVA] Últimas 4 semanas: ${data.strava.recent.count || 0} atividades | ${km}km | ${min}min em movimento`)
-  }
   if (data.trakt?.stats) {
     L.push(`[TRAKT] ${data.trakt.stats.movies_watched || 0} filmes, ${data.trakt.stats.episodes_watched || 0} episódios, ${data.trakt.stats.shows_watched || 0} séries assistidas`)
   }
@@ -175,6 +170,8 @@ Pergunte sempre o "qual" e o "porquê":
 - games → QUAL gênero/jogo você curte mais e POR QUÊ?
 - animes → QUAL anime é seu favorito? (só anime, separado de séries/filmes)
 - academia → treina o quê? QUAL objetivo (saúde, estética, força)?
+- leitura → QUAL último livro que leu/tá lendo? gênero favorito (ficção, fantasia, autoajuda, técnico)? lê por prazer ou hábito?
+- saude → corre, caminha ou pedala? QUAL a frequência na semana e o que te motiva (saúde, cabeça, competição)?
 - relacionamento → QUAL seu status? (solteiro/namorando/casado) e há quanto tempo?
 - infancia → QUAL era o sonho de criança? o que mudou?
 - hobbies → QUAL hobbie fora de tela e como começou nele?
@@ -518,7 +515,9 @@ export async function POST(req: Request) {
     // ── Progressão: compara com o veredito anterior ──
     const scannedNow = getScannedData(s) || s.scanned_data || {}
     const currentMetrics = extractMetrics(scannedNow)
-    const newGoals = generateGoals(currentMetrics)
+    // interesses = tópicos selecionáveis que o usuário NÃO bloqueou
+    const interests = SELECTABLE_TOPIC_IDS.filter(t => !blocked.includes(t))
+    const newGoals = generateGoals(currentMetrics, interests)
 
     const { data: prevVeredict } = await supabase
       .from('veredits')

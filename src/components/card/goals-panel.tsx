@@ -4,6 +4,7 @@ interface Goal {
   id: string
   emoji: string
   label: string
+  verified?: boolean
   done?: boolean
 }
 interface Progression {
@@ -56,6 +57,16 @@ export function GoalsPanel({ goals, progression, primary = '#8B5CF6' }: GoalsPan
                 <span className={`flex-1 text-sm ${g.done ? 'text-green-400 line-through' : 'text-[#F3E8FF]/80'}`}>
                   {g.label}
                 </span>
+                {/* selo: verificada (API) x na honra (declarativa) */}
+                {g.verified === false ? (
+                  <span className="shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                    na honra
+                  </span>
+                ) : (
+                  <span className="shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-500/10 text-green-300/80 border border-green-500/20">
+                    auto
+                  </span>
+                )}
                 {g.done && (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><polyline points="20 6 9 17 4 12"/></svg>
                 )}
@@ -63,7 +74,7 @@ export function GoalsPanel({ goals, progression, primary = '#8B5CF6' }: GoalsPan
             ))}
           </div>
           <p className="text-[#F3E8FF]/30 text-[11px] mt-3" style={{ color: `${primary}99` }}>
-            Cumpra as metas e refaça em 5 dias pra ver seu card evoluir.
+            Metas <span className="text-green-300/70">auto</span> são checadas pela API. As <span className="text-amber-300">na honra</span> você confirma no peito. Refaça em 5 dias pra ver o card evoluir.
           </p>
         </div>
       )}

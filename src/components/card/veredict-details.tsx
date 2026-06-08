@@ -20,7 +20,7 @@ interface VeredictDetailsProps {
     niche_colors?: { primary: string; secondary: string; accent: string }
     likes_count?: number
     dislikes_count?: number
-    goals?: { id: string; emoji: string; label: string; done?: boolean }[]
+    goals?: { id: string; emoji: string; label: string; verified?: boolean; done?: boolean }[]
     progression?: { overall_delta: number; goals_met: number; goals_total: number } | null
   }
   isOwner?: boolean
