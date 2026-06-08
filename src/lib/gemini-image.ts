@@ -49,7 +49,7 @@ export async function generateCardImage(
     body: JSON.stringify({
       contents: [{ parts }],
       generationConfig: {
-        responseModalities: ['IMAGE'],
+        responseModalities: ['TEXT', 'IMAGE'],
         imageConfig: { aspectRatio: '9:16' },
       },
     }),
@@ -58,7 +58,7 @@ export async function generateCardImage(
   if (!res.ok) {
     const err = await res.text()
     console.error('Gemini image error:', res.status, err)
-    throw new Error(`Gemini Image API error: ${res.status}`)
+    throw new Error(`Gemini Image API error: ${res.status} — ${err.slice(0, 300)}`)
   }
 
   const data = await res.json()

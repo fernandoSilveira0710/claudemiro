@@ -413,7 +413,7 @@ export async function POST(req: Request) {
     const resultRaw = await chatCompletion([{ role: 'user', content: buildVeredictPrompt(s.scanned_data || {}, msgs, s.mode) }], undefined, { temperature: 0.9, maxTokens: 3000, json: true })
     let veredict: any
     try { veredict = JSON.parse(resultRaw.replace(/```json\s*|\s*```/g, '').trim()) } catch { return NextResponse.json({ error: 'Falha', raw: resultRaw }, { status: 500 }) }
-    const { data: saved } = await supabase.from('veredits').insert({
+    const { data: saved, error: insertErr } = await supabase.from('veredits').insert({
       user_id: user.id, mode: s.mode, veredict_text: veredict.veredict_text, veredict_badge: veredict.veredict_badge,
       tags: veredict.tags, niche: veredict.niche, niche_colors: veredict.niche_colors, profession_label: veredict.profession_label, tips: veredict.tips,
       frame_type: frameType || 'cinza', base_image_url: baseImageUrl || null,
@@ -422,9 +422,11 @@ export async function POST(req: Request) {
       hashtags: veredict.hashtags, summary_short: veredict.summary_short, personal_map: veredict.personal_map,
       image_style: veredict.image_style, image_brief: veredict.image_brief,
     }).select().single()
+    if (insertErr) console.error('Veredit insert failed:', insertErr.message)
 
     // Gera a imagem do card via Gemini (não bloqueia o veredito se falhar)
     let cardImageUrl: string | null = null
+    let imageError: string | null = null
     if (saved?.id) {
       try {
         const style: ImageStyle = (veredict.image_style as ImageStyle) || 'engracado'
@@ -441,7 +443,9 @@ export async function POST(req: Request) {
         const { error: upErr } = await supabase.storage
           .from('cards')
           .upload(fileName, buffer, { contentType: 'image/png', upsert: true })
-        if (!upErr) {
+        if (upErr) {
+          imageError = `storage: ${upErr.message}`
+        } else {
           const { data: pub } = supabase.storage.from('cards').getPublicUrl(fileName)
           cardImageUrl = pub.publicUrl
           await supabase.from('veredits').update({
@@ -451,7 +455,8 @@ export async function POST(req: Request) {
           }).eq('id', saved.id)
         }
       } catch (e) {
-        console.error('Gemini card image failed:', e)
+        imageError = e instanceof Error ? e.message : String(e)
+        console.error('Gemini card image failed:', imageError)
       }
     }
     // marca geração pro gate temporal
@@ -459,7 +464,7 @@ export async function POST(req: Request) {
     const vmsg = `🔮 *VEREDITO*\n\n${veredict.veredict_text}\n\n🏷️ ${veredict.veredict_badge || ''}`
     msgs.push({ role: 'claudemiro', content: vmsg, veredict: true })
     await supabase.from('chat_sessions').update({ phase: 'done', status: 'completed', messages: msgs }).eq('id', sessionId)
-    return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, card_image_url: cardImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, messages: msgs })
+    return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, card_image_url: cardImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, messages: msgs, _debug: { insertOk: !!saved, imageError, hasMainTrait: !!veredict.main_trait, hasOverall: typeof veredict.overall === 'number', skillsCount: veredict.skills?.length || 0 } })
   }
 
   const { data: s } = await supabase.from('chat_sessions').select('*')
