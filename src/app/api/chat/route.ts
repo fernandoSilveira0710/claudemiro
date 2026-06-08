@@ -608,7 +608,7 @@ export async function POST(req: Request) {
     // NÃO salva o veredict no chat — só retorna pro wizard. 
     // Salva cache no _system pra evitar regenerar
     const sysIdx = msgs.findIndex((m: any) => m._system)
-    const sysMsg = buildMetaMessage(getPhaseData(s) || {}, getScannedData(s) || {})
+    const sysMsg: any = buildMetaMessage(getPhaseData(s) || {}, getScannedData(s) || {})
     sysMsg._veredict_cache = { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, card_image_url: cardImageUrl, music_track: track || veredict.music_track }
     if (sysIdx >= 0) msgs[sysIdx] = sysMsg; else msgs.push(sysMsg)
     await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', sessionId)
