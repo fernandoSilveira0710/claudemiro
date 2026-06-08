@@ -93,9 +93,9 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
       </header>
 
       {/* Conteúdo */}
-      <div className="relative z-10 max-w-2xl mx-auto px-4 py-8 space-y-8">
+      <div className="relative z-10 max-w-5xl mx-auto px-4 py-8">
         {/* Título */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 mb-8">
           <h1 className="text-3xl font-black text-white" style={{ fontFamily: "'DM Sans', sans-serif" }}>
             {isOwner ? 'Seu Veredito' : 'Veredito'}
           </h1>
@@ -111,13 +111,16 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
           )}
         </div>
 
-        {/* Card */}
-        <div className="flex justify-center">
-          <VeredictCard veredict={veredict} plan={profile?.plan || 'FREE'} />
-        </div>
+        {/* Layout: card à esquerda (sticky no desktop), detalhes à direita */}
+        <div className="flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-12">
+          {/* Coluna do card */}
+          <div className="flex justify-center lg:sticky lg:top-8 lg:shrink-0">
+            <VeredictCard veredict={veredict} plan={profile?.plan || 'FREE'} />
+          </div>
 
-        {/* Detalhes: veredito completo, mapa pessoal, reações, highlights, música */}
-        <VeredictDetails veredict={veredict} isOwner={isOwner} />
+          {/* Coluna de detalhes + ações */}
+          <div className="flex-1 min-w-0 space-y-8">
+            <VeredictDetails veredict={veredict} isOwner={isOwner} />
 
         {/* Link do perfil */}
         {profileUrl && (
@@ -189,6 +192,8 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
             </a>
           )}
         </div>
+          </div>{/* fim coluna detalhes */}
+        </div>{/* fim layout 2 colunas */}
 
         {/* Footer sutil */}
         <p className="text-center text-[#F3E8FF]/15 text-xs pt-8 pb-4">

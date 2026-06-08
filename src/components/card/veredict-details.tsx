@@ -28,7 +28,7 @@ export function VeredictDetails({ veredict, isOwner = false }: VeredictDetailsPr
   const highlights = (veredict.network_highlights || []).filter(h => h.value && h.value !== 'null')
 
   return (
-    <div className="w-full max-w-md mx-auto flex flex-col items-center gap-5">
+    <div className="w-full flex flex-col items-center gap-5">
       {/* veredito do Claudemiro */}
       {veredict.final_opinion && (
         <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}

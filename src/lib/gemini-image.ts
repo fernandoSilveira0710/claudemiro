@@ -42,6 +42,7 @@ export async function generateCardImage(
 
   const res = await fetch(GEMINI_ENDPOINT, {
     method: 'POST',
+    signal: AbortSignal.timeout(45000),
     headers: {
       'Content-Type': 'application/json',
       'x-goog-api-key': apiKey,

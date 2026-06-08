@@ -469,6 +469,10 @@ export async function POST(req: Request) {
       network_highlights: veredict.network_highlights || [],
       user_name: veredict.user_name || undefined,
     }
+    // pagos têm perfil público → veredito visível em /u/[username]
+    const { data: planRow } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
+    const isPaidUser = planRow?.plan === 'FLEX' || planRow?.plan === 'PRO'
+
     const { data: saved, error: insertErr } = await supabase.from('veredits').insert({
       user_id: user.id, mode: s.mode, veredict_text: veredict.veredict_text, veredict_badge: veredict.veredict_badge,
       tags: veredict.tags, niche: veredict.niche, niche_colors: veredict.niche_colors,
@@ -477,6 +481,7 @@ export async function POST(req: Request) {
       main_trait: veredict.main_trait, overall: veredict.overall, skills: veredict.skills,
       hashtags: veredict.hashtags, summary_short: veredict.summary_short, personal_map: veredict.personal_map,
       image_style: veredict.image_style, image_brief: veredict.image_brief,
+      is_public: isPaidUser,
     }).select().single()
     const insertErrorMsg = insertErr?.message || (saved ? null : 'no rows returned')
     if (insertErr) console.error('Veredit insert failed:', insertErr.message)
@@ -487,38 +492,54 @@ export async function POST(req: Request) {
     try {
       const style: ImageStyle = (veredict.image_style as ImageStyle) || 'engracado'
       const brief: ImageBrief = (veredict.image_brief as ImageBrief) || {}
-      const { prompt } = buildImagePrompt({
-        data: getScannedData(s) || s.scanned_data || {},
-        brief,
-        style,
-        hasReferenceImage: !!baseImageUrl,
-      })
-      const img = await generateCardImage(prompt, baseImageUrl || undefined)
+
+      // tenta COM a foto de referência; se falhar (foto bloqueada/CORS/safety),
+      // tenta DE NOVO sem referência (gera do zero) antes de desistir.
+      let img: { base64: string; mimeType: string } | null = null
+      const promptWithRef = buildImagePrompt({ data: getScannedData(s) || s.scanned_data || {}, brief, style, hasReferenceImage: !!baseImageUrl }).prompt
+      let usedPrompt = promptWithRef
+      try {
+        img = await generateCardImage(promptWithRef, baseImageUrl || undefined)
+      } catch (e1) {
+        imageError = `ref: ${e1 instanceof Error ? e1.message : String(e1)}`
+        if (baseImageUrl) {
+          // 2ª tentativa: sem referência
+          const promptNoRef = buildImagePrompt({ data: getScannedData(s) || s.scanned_data || {}, brief, style, hasReferenceImage: false }).prompt
+          usedPrompt = promptNoRef
+          img = await generateCardImage(promptNoRef, undefined)
+          imageError = imageError + ' | recuperado sem referência'
+        } else {
+          throw e1
+        }
+      }
+
       const buffer = Buffer.from(img.base64, 'base64')
-      // Usa o ID do veredito salvo, ou gera UUID temporário pro storage
       const vid = saved?.id || crypto.randomUUID()
       const fileName = `cards/${user.id}/${vid}.png`
       const { error: upErr } = await supabase.storage
         .from('cards')
         .upload(fileName, buffer, { contentType: 'image/png', upsert: true })
       if (upErr) {
-        imageError = `storage: ${upErr.message}`
-        // Fallback: retorna data URL direto se bucket não existir
+        imageError = `${imageError ? imageError + ' | ' : ''}storage: ${upErr.message}`
         cardImageUrl = `data:${img.mimeType || 'image/png'};base64,${img.base64}`
       } else {
         const { data: pub } = supabase.storage.from('cards').getPublicUrl(fileName)
         cardImageUrl = pub.publicUrl
-        if (saved?.id) {
-          await supabase.from('veredits').update({
-            card_image_url: cardImageUrl,
-            image_source: baseImageUrl ? 'network' : 'generated',
-            image_prompt: prompt,
-          }).eq('id', saved.id)
-        }
+      }
+      if (saved?.id) {
+        await supabase.from('veredits').update({
+          card_image_url: cardImageUrl,
+          image_source: baseImageUrl ? 'network' : 'generated',
+          image_prompt: usedPrompt,
+          image_error: imageError,
+        }).eq('id', saved.id)
       }
     } catch (e) {
       imageError = e instanceof Error ? e.message : String(e)
       console.error('Gemini card image failed:', imageError)
+      if (saved?.id) {
+        await supabase.from('veredits').update({ image_error: imageError }).eq('id', saved.id)
+      }
     }
     // marca geração pro gate temporal
     await supabase.from('profiles').update({ last_generation_at: new Date().toISOString() }).eq('id', user.id)
