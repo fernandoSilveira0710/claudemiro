@@ -10,6 +10,7 @@ interface VeredictCardProps {
   veredict: {
     id?: string
     main_trait?: string
+    summary_emoji?: string
     veredict_badge: string
     overall?: number
     card_image_url?: string
@@ -49,7 +50,7 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
   const rarity = useMemo(() => rollRarity(plan), [plan])
   const rarityInfo = RARITIES[rarity]
 
-  const topSkills = (veredict.skills || []).slice(0, 3)
+  const topSkills = (veredict.skills || []).slice(0, 4)
   const topHashtags = (veredict.hashtags || []).slice(0, 4)
 
   const [tilt, setTilt] = useState({ rx: '0deg', ry: '0deg', s: '1' })
@@ -117,21 +118,28 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
         >
           <CardHoloEffects rarity={rarity} />
 
-          {/* HEADER: OVR + título */}
+          {/* HEADER: OVR + emoji-resumo + título */}
           <div className="relative z-20 flex items-stretch justify-between px-3 pt-5 pb-2 gap-2">
-            <div className="flex flex-col items-center justify-center leading-none px-2 py-1 rounded-lg shrink-0"
-              style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${accent}55` }}>
-              <span className="font-black text-3xl tabular-nums" style={{ color: ovrColor(veredict.overall || 50) }}>
-                {veredict.overall ?? '—'}
-              </span>
-              <span className="text-white/60 text-[8px] font-bold tracking-[0.2em]">OVR</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex flex-col items-center justify-center leading-none px-2 py-1 rounded-lg"
+                style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${accent}55` }}>
+                <span className="font-black text-3xl tabular-nums" style={{ color: ovrColor(veredict.overall || 50) }}>
+                  {veredict.overall ?? '—'}
+                </span>
+                <span className="text-white/60 text-[8px] font-bold tracking-[0.2em]">OVR</span>
+              </div>
+              {veredict.summary_emoji && (
+                <span className="text-3xl leading-none drop-shadow" aria-hidden>
+                  {veredict.summary_emoji}
+                </span>
+              )}
             </div>
             <div className="flex flex-col items-end justify-center min-w-0 text-right">
-              <h2 className="text-white font-black text-lg leading-tight truncate max-w-[210px] drop-shadow"
+              <h2 className="text-white font-black text-lg leading-tight truncate max-w-[180px] drop-shadow"
                 title={veredict.main_trait || veredict.veredict_badge}>
                 {veredict.main_trait || veredict.veredict_badge}
               </h2>
-              {name && <span className="text-white/55 text-[11px] font-semibold truncate max-w-[210px]">{name}</span>}
+              {name && <span className="text-white/55 text-[11px] font-semibold truncate max-w-[180px]">{name}</span>}
             </div>
           </div>
 
@@ -143,14 +151,19 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
             </span>
           </div>
 
-          {/* JANELA DE IMAGEM */}
+          {/* JANELA DE IMAGEM (menor, estilo Pokémon) */}
           <div className="relative z-[3] mx-3 rounded-xl overflow-hidden"
-            style={{ border: `2px solid ${accent}66`, background: `radial-gradient(circle at 50% 35%, ${primary}33, ${secondary}22 70%, transparent)` }}>
+            style={{
+              border: `2px solid ${accent}66`,
+              background: `linear-gradient(160deg, ${primary} 0%, ${secondary} 55%, ${accent} 100%)`,
+            }}>
             {cardImg ? (
-              <img src={cardImg} alt={veredict.veredict_badge} className="w-full aspect-[4/5] object-contain" referrerPolicy="no-referrer" />
+              <img src={cardImg} alt={veredict.veredict_badge}
+                className="relative z-10 w-full aspect-[16/12] object-cover"
+                referrerPolicy="no-referrer" />
             ) : (
-              <div className="w-full aspect-[4/5] flex items-center justify-center">
-                <div className="text-center text-white/50">
+              <div className="w-full aspect-[16/12] flex items-center justify-center">
+                <div className="text-center text-white/70">
                   <div className="text-5xl mb-2">{rarityInfo.emoji}</div>
                   <p className="text-sm font-semibold">{rarityInfo.label}</p>
                 </div>
@@ -164,20 +177,20 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
             <p className="text-white font-black text-sm leading-tight">{veredict.veredict_badge}</p>
           </div>
 
-          {/* SKILLS top 3 */}
+          {/* SKILLS (maiores, destaque) */}
           {topSkills.length > 0 && (
-            <div className="relative z-20 mx-3 mt-2.5 space-y-1.5">
+            <div className="relative z-20 mx-3 mt-3 space-y-2.5">
               {topSkills.map((s, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-sm w-5 text-center shrink-0">{s.emoji}</span>
-                  <span className="text-white/80 text-[11px] font-semibold w-[88px] truncate shrink-0">{s.name}</span>
-                  <div className="flex-1 bg-black/30 rounded-full h-1.5 overflow-hidden">
+                <div key={i} className="flex items-center gap-2.5">
+                  <span className="text-lg w-6 text-center shrink-0">{s.emoji}</span>
+                  <span className="text-white text-[13px] font-bold w-[96px] truncate shrink-0">{s.name}</span>
+                  <div className="flex-1 bg-black/35 rounded-full h-3 overflow-hidden">
                     <motion.div className="h-full rounded-full"
                       style={{ background: `linear-gradient(to right, ${accent}, ${secondary})` }}
                       initial={{ width: 0 }} animate={{ width: `${s.value}%` }}
                       transition={{ delay: 0.4 + i * 0.1, duration: 0.8 }} />
                   </div>
-                  <span className="text-white font-bold text-[10px] w-6 text-right tabular-nums shrink-0">{s.value}</span>
+                  <span className="text-white font-black text-sm w-7 text-right tabular-nums shrink-0">{s.value}</span>
                 </div>
               ))}
             </div>

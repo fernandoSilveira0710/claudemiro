@@ -118,6 +118,28 @@ export interface BuiltImagePrompt {
  * Se `referenceImageUrl` existir (foto de perfil / upload), a IA edita a foto
  * mantendo o rosto; senão gera do zero com base no brief.
  */
+/** Cenário de fundo coerente com o resumo (em vez de fundo transparente). */
+function buildBackground(brief: ImageBrief, data: ScannedUserData, music: string | null): string {
+  const game = topGameReference(data)
+  const parts: string[] = []
+
+  if (brief.nerd || brief.profession === 'programador') {
+    parts.push('a cozy gamer/dev bedroom setup: desk with a glowing monitor showing code, RGB keyboard, neon LED strips')
+  }
+  if (game) parts.push(`a ${game} poster on the wall`)
+  if (brief.football_team) parts.push(`a ${brief.football_team} flag or scarf pinned on the wall`)
+  if (brief.beach) parts.push('a sunny tropical beach with palm trees and waves')
+  if (brief.rocker) parts.push('a dark concert stage with stage lights and amps')
+  if (brief.religion_formal) parts.push('a calm, tidy room with soft warm light')
+  if (music) parts.push(`subtle ${music} music vibe in the decor`)
+
+  const scene = parts.length
+    ? parts.join(', ')
+    : 'a stylized colorful background that matches the character personality'
+
+  return `Background scenery (fills the whole frame, NOT transparent): ${scene}. Keep the character sharp and clearly in the foreground.`
+}
+
 export function buildImagePrompt(opts: {
   data: ScannedUserData
   brief: ImageBrief
@@ -132,6 +154,7 @@ export function buildImagePrompt(opts: {
   const hat = buildHat(brief)
   const face = buildFace(brief, style)
   const extras = buildExtraProps(brief, data)
+  const background = buildBackground(brief, data, music)
 
   const subject = hasReferenceImage
     ? 'Recreate the person from the provided reference photo, keeping their recognizable face and hairstyle, but redraw them facing forward (front-facing portrait).'
@@ -145,8 +168,8 @@ export function buildImagePrompt(opts: {
     hat ? `Headwear: ${hat}.` : '',
     `Face: ${face}.`,
     extras.length ? `Extra elements: ${extras.join('; ')}.` : '',
-    'IMPORTANT: fully transparent background (PNG alpha), no scenery — only the character, so it can be composited inside a trading card.',
-    'Vertical 9:16 framing, character centered, head and torso visible.',
+    background,
+    'Vertical 4:5 framing, character centered from the waist up, filling the frame nicely.',
   ].filter(Boolean)
 
   return {

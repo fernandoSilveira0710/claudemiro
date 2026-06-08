@@ -25,6 +25,7 @@ ${JSON.stringify(chatHistory, null, 2)}
 Baseado nesses dados, gere um JSON com esta estrutura exata:
 {
   "main_trait": "[rótulo principal em até 4 palavras — é o DESTAQUE em negrito no topo do card. Ex: 'Nerd', 'Rato de academia', 'Cria do Mengão']",
+  "summary_emoji": "[UM único emoji que RESUME a pessoa, exibido ao lado do overall. Ex: 🎮 gamer, 🙏 religioso, 💄 maquiagem, ⚽ futebol, 🎸 rockeiro, 📚 nerd, 🏋️ academia, 🏖️ praia]",
   "veredict_badge": "Tu é [rótulo de até 6 palavras, impactante, que a pessoa QUEIRA compartilhar]",
   "veredict_text": "[resumo de 2-3 parágrafos analisando a personalidade da pessoa com base nos dados reais, no tom do modo escolhido. Seja específico, cite dados reais que você viu nas redes dela]",
   "overall": "[nota FIFA de 40 a 99 representando o quão 'completa' a pessoa é — 99 = lenda viva, 90+ = elite, 80+ = muito bom, 70+ = bom, 60+ = ok, 50+ = abaixo da média, 40-49 = precisa melhorar]",

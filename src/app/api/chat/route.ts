@@ -450,6 +450,7 @@ export async function POST(req: Request) {
     const defaultMap = [{ axis: 'Vida', value: 50, comment: 'Em construção 🚧' }, { axis: 'Redes', value: 50, comment: 'Dá pra melhorar 📈' }, { axis: 'Humor', value: 50, comment: 'Tem potencial 😄' }, { axis: 'Estilo', value: 50, comment: 'Mistério total 🕵️' }, { axis: 'Foco', value: 50, comment: 'Morno 🌡️' }]
     veredict = {
       main_trait: veredict.main_trait || 'Mistério',
+      summary_emoji: veredict.summary_emoji || '✨',
       veredict_badge: veredict.badge || veredict.veredict_badge || 'Tu é uma incógnita',
       veredict_text: veredict.veredict_text || 'O Claudemiro analisou mas os dados são insuficientes para um veredito completo.',
       overall: typeof veredict.overall === 'number' ? veredict.overall : 50,
@@ -479,6 +480,7 @@ export async function POST(req: Request) {
       frame_type: frameType || 'cinza', base_image_url: baseImageUrl || null,
       music_track: track || veredict.music_track || null,
       main_trait: veredict.main_trait, overall: veredict.overall, skills: veredict.skills,
+      summary_emoji: veredict.summary_emoji,
       hashtags: veredict.hashtags, summary_short: veredict.summary_short, personal_map: veredict.personal_map,
       image_style: veredict.image_style, image_brief: veredict.image_brief,
       is_public: isPaidUser,
