@@ -98,7 +98,7 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestVeredict: true, sessionId, frameType: selectedFrame, baseImageUrl: selectedImage, track: selectedTrack }) })
       const data = await res.json(); const v = data.veredict || data
-      setVeredict({ ...v, frame_type: selectedFrame, base_image_url: selectedImage || v?.card_image_url, music_track: selectedTrack || v?.music_track })
+      setVeredict({ ...v, frame_type: selectedFrame, card_image_url: v?.card_image_url || null, base_image_url: selectedImage, music_track: selectedTrack || v?.music_track })
       await new Promise(r => setTimeout(r, 400)); setShowCard(true)
     } catch (err) { console.error(err); setThoughts(prev => [...prev, '⚠️ Algo deu errado. Tenta de novo.']) }
     setIsGenerating(false)
