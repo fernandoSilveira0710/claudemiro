@@ -474,11 +474,28 @@ export async function POST(req: Request) {
     const { data: planRow } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
     const isPaidUser = planRow?.plan === 'FLEX' || planRow?.plan === 'PRO'
 
+    // Enriquece a música escolhida com previewUrl/spotifyUrl do scanner (clipe de 30s)
+    let musicTrack = track || veredict.music_track || null
+    if (musicTrack?.name) {
+      const scanned = getScannedData(s) || s.scanned_data
+      const match = scanned?.spotify?.topTracks?.find(
+        (t: any) => t.name === musicTrack.name || `${t.name} - ${t.artist}` === musicTrack.name
+      )
+      if (match) {
+        musicTrack = {
+          name: match.name,
+          artist: match.artist,
+          previewUrl: match.previewUrl || null,
+          spotifyUrl: match.spotifyUrl || musicTrack.spotifyUrl,
+        }
+      }
+    }
+
     const { data: saved, error: insertErr } = await supabase.from('veredits').insert({
       user_id: user.id, mode: s.mode, veredict_text: veredict.veredict_text, veredict_badge: veredict.veredict_badge,
       tags: veredict.tags, niche: veredict.niche, niche_colors: veredict.niche_colors,
       frame_type: frameType || 'cinza', base_image_url: baseImageUrl || null,
-      music_track: track || veredict.music_track || null,
+      music_track: musicTrack,
       main_trait: veredict.main_trait, overall: veredict.overall, skills: veredict.skills,
       summary_emoji: veredict.summary_emoji,
       hashtags: veredict.hashtags, summary_short: veredict.summary_short, personal_map: veredict.personal_map,

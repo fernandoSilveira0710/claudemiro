@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { PersonalMap } from './personal-map'
 import { ReactionButtons } from './reaction-buttons'
+import { MusicPlayer } from './music-player'
 
 interface MapAxis { axis: string; value: number; comment?: string }
 interface NetworkHighlight { platform: string; icon: string; label: string; value: string }
@@ -14,7 +15,7 @@ interface VeredictDetailsProps {
     final_opinion?: string
     personal_map?: MapAxis[]
     network_highlights?: NetworkHighlight[]
-    music_track?: { name: string; artist: string; spotifyUrl?: string }
+    music_track?: { name: string; artist: string; previewUrl?: string | null; spotifyUrl?: string }
     niche_colors?: { primary: string; secondary: string; accent: string }
     likes_count?: number
     dislikes_count?: number
@@ -78,21 +79,8 @@ export function VeredictDetails({ veredict, isOwner = false }: VeredictDetailsPr
         </div>
       )}
 
-      {/* música tocando (player Spotify embed) */}
-      {veredict.music_track && (
-        <a
-          href={veredict.music_track.spotifyUrl || `https://open.spotify.com/search/${encodeURIComponent(`${veredict.music_track.name} ${veredict.music_track.artist}`)}`}
-          target="_blank" rel="noopener noreferrer"
-          className="w-full flex items-center gap-3 bg-[#1DB954]/10 hover:bg-[#1DB954]/20 border border-[#1DB954]/30 rounded-xl p-3 transition-colors"
-        >
-          <span className="text-2xl">🎵</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm truncate">{veredict.music_track.name}</p>
-            <p className="text-[#F3E8FF]/50 text-xs truncate">{veredict.music_track.artist}</p>
-          </div>
-          <span className="text-[#1DB954] text-xs font-bold shrink-0">▶ Spotify</span>
-        </a>
-      )}
+      {/* música — preview de 30s em loop */}
+      {veredict.music_track && <MusicPlayer track={veredict.music_track} />}
     </div>
   )
 }

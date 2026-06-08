@@ -32,11 +32,15 @@ interface VeredictCardProps {
 function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
 
 function ovrColor(v: number) {
-  if (v >= 90) return '#FCD34D'
-  if (v >= 80) return '#4ADE80'
-  if (v >= 70) return '#22D3EE'
-  if (v >= 60) return '#FBBF24'
-  return '#F87171'
+  if (v >= 75) return '#FCD34D'  // Ouro
+  if (v >= 65) return '#D1D5DB'  // Prata
+  return '#CD7F32'               // Bronze
+}
+
+function ovrTier(v: number) {
+  if (v >= 75) return 'Ouro'
+  if (v >= 65) return 'Prata'
+  return 'Bronze'
 }
 
 export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
@@ -50,7 +54,13 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
   const rarity = useMemo(() => rollRarity(plan, veredict.id), [plan, veredict.id])
   const rarityInfo = RARITIES[rarity]
 
-  const topSkills = (veredict.skills || []).slice(0, 4)
+  const allSkills = veredict.skills || []
+  const topSkills = allSkills.slice(0, 4)
+  // Overall = média de TODAS as skills (consistente), com fallback ao valor da IA
+  const computedOverall = allSkills.length
+    ? Math.round(allSkills.reduce((sum, s) => sum + (s.value || 0), 0) / allSkills.length)
+    : (veredict.overall ?? 50)
+  const overall = computedOverall
   const topHashtags = (veredict.hashtags || []).slice(0, 4)
 
   const [tilt, setTilt] = useState({ rx: '0deg', ry: '0deg', s: '1' })
@@ -97,6 +107,7 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
     >
       <div
         ref={cardRef}
+        data-card-tilt
         onMouseMove={onMove}
         onMouseLeave={onLeave}
         onTouchMove={onTouch}
@@ -122,25 +133,25 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
           {/* HEADER: OVR + emoji-resumo + título */}
           <div className="relative z-20 flex items-stretch justify-between px-3 pt-5 pb-2 gap-2">
             <div className="flex items-center gap-2 shrink-0">
-              <div className="flex flex-col items-center justify-center leading-none px-2 py-1 rounded-lg"
-                style={{ background: 'rgba(0,0,0,0.35)', border: `1px solid ${accent}55` }}>
-                <span className="font-black text-3xl tabular-nums" style={{ color: ovrColor(veredict.overall || 50) }}>
-                  {veredict.overall ?? '—'}
+              <div className="flex flex-col items-center justify-center leading-none px-2.5 py-1.5 rounded-lg"
+                style={{ background: 'rgba(0,0,0,0.4)', border: `1.5px solid ${ovrColor(overall)}` }}>
+                <span className="font-black text-3xl tabular-nums" style={{ color: ovrColor(overall) }}>
+                  {overall}
                 </span>
-                <span className="text-white/60 text-[8px] font-bold tracking-[0.2em]">OVR</span>
+                <span className="text-[8px] font-bold tracking-[0.2em]" style={{ color: ovrColor(overall) }}>{ovrTier(overall).toUpperCase()}</span>
               </div>
               {veredict.summary_emoji && (
-                <span className="text-3xl leading-none drop-shadow" aria-hidden>
+                <span className="text-5xl leading-none drop-shadow" aria-hidden>
                   {veredict.summary_emoji}
                 </span>
               )}
             </div>
             <div className="flex flex-col items-end justify-center min-w-0 text-right">
-              <h2 className="text-white font-black text-lg leading-tight truncate max-w-[180px] drop-shadow"
+              <h2 className="text-white font-black text-lg leading-tight truncate max-w-[170px] drop-shadow"
                 title={veredict.main_trait || veredict.veredict_badge}>
                 {veredict.main_trait || veredict.veredict_badge}
               </h2>
-              {name && <span className="text-white/55 text-[11px] font-semibold truncate max-w-[180px]">{name}</span>}
+              {name && <span className="text-white/55 text-[11px] font-semibold truncate max-w-[170px]">{name}</span>}
             </div>
           </div>
 
@@ -154,16 +165,14 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
 
           {/* JANELA DE IMAGEM (menor, estilo Pokémon) */}
           <div className="relative z-[3] mx-3 rounded-xl overflow-hidden"
-            style={{
-              border: `2px solid ${accent}66`,
-              background: `linear-gradient(160deg, ${primary} 0%, ${secondary} 55%, ${accent} 100%)`,
-            }}>
+            style={{ border: `2px solid ${accent}66`, background: '#0D0221' }}>
             {cardImg ? (
               <img src={cardImg} alt={veredict.veredict_badge}
-                className="relative z-10 w-full aspect-[16/12] object-cover"
+                className="block w-full aspect-[16/12] object-cover"
                 referrerPolicy="no-referrer" />
             ) : (
-              <div className="w-full aspect-[16/12] flex items-center justify-center">
+              <div className="w-full aspect-[16/12] flex items-center justify-center"
+                style={{ background: `linear-gradient(160deg, ${primary}, ${secondary})` }}>
                 <div className="text-center text-white/70">
                   <div className="text-5xl mb-2">{rarityInfo.emoji}</div>
                   <p className="text-sm font-semibold">{rarityInfo.label}</p>
@@ -241,10 +250,22 @@ function DownloadCardBtn({ veredict }: { veredict: any }) {
         downloadRaw(veredict)
         return
       }
+      // reseta o tilt 3D pra capturar o card reto, sem perspectiva
+      const tiltEl = cardEl.querySelector('[data-card-tilt]') as HTMLElement | null
+      const prevTransform = tiltEl?.style.transform
+      if (tiltEl) tiltEl.style.transform = 'none'
+      await new Promise(r => setTimeout(r, 60))
+
       const dataUrl = await domToPng(cardEl, {
-        backgroundColor: '#0D0221',
-        scale: 2,
+        backgroundColor: 'transparent',
+        scale: 3,
+        filter: (node: Node) => {
+          // não captura elementos marcados como fora do card (ex: botões, "Gerando")
+          return !(node instanceof HTMLElement && node.hasAttribute('data-no-export'))
+        },
       })
+      if (tiltEl) tiltEl.style.transform = prevTransform || ''
+
       const a = document.createElement('a'); a.href = dataUrl
       a.download = `claudemiro-${(veredict.veredict_badge || 'card').replace(/\s/g, '-')}.png`; a.click()
     } catch (e) {

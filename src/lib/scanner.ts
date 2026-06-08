@@ -3,7 +3,7 @@ import { createServerSupabase } from './supabase/server'
 export interface ScannedUserData {
   spotify?: {
     topArtists: { name: string; genres: string[] }[]
-    topTracks: { name: string; artist: string }[]
+    topTracks: { name: string; artist: string; previewUrl?: string | null; spotifyUrl?: string }[]
   }
   steam?: {
     profile: { personaname: string; avatarfull: string }
@@ -55,6 +55,8 @@ export async function scanUserData(userId: string): Promise<ScannedUserData> {
             topTracks: tracks.items?.map((t: any) => ({
               name: t.name,
               artist: t.artists?.[0]?.name || '',
+              previewUrl: t.preview_url || null,
+              spotifyUrl: t.external_urls?.spotify || undefined,
             })) || [],
           }
         } catch {
