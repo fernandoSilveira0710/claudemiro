@@ -17,7 +17,7 @@ export function ShareLink({ path }: { path: string }) {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full">
       <div className="flex items-center gap-2 bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2.5">
         <LinkIcon size={16} className="text-[#F3E8FF]/40 shrink-0" />
         <span className="flex-1 text-[#F3E8FF]/60 text-xs font-mono truncate">{full}</span>

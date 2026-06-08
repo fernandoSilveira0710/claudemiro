@@ -32,7 +32,6 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     .from('veredits')
     .select('*')
     .eq('user_id', profile.id)
-    .eq('is_public', true)
     .order('created_at', { ascending: false })
     .limit(5)
 

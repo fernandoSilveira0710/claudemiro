@@ -3,7 +3,6 @@ import { VeredictCard } from '@/components/card/veredict-card'
 import { VeredictDetails } from '@/components/card/veredict-details'
 import { ShareLink } from '@/components/card/share-link'
 import { ShareButtons } from '@/components/share-buttons'
-import { ClaudemiroBot } from '@/components/claudemiro-bot'
 import { Badge } from '@/components/ui/badge'
 
 export default async function ResultadoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -71,24 +70,17 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
 
       {/* Header */}
       <header className="relative z-10 border-b border-white/[0.06] backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <a href={isOwner ? '/' : '/'} className="flex items-center gap-2 text-[#F3E8FF]/60 hover:text-[#F3E8FF] transition-colors">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2 text-[#F3E8FF]/60 hover:text-[#F3E8FF] transition-colors">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M19 12H5M12 19l-7-7 7-7"/>
             </svg>
             <span className="text-sm font-medium">{isOwner ? 'Início' : 'Claudemiro'}</span>
           </a>
 
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 opacity-60">
-              <ClaudemiroBot />
-            </div>
-            <span className="text-[#F3E8FF]/40 text-xs font-medium uppercase tracking-wider">
-              Resultado
-            </span>
-          </div>
-
-          <div className="w-[68px]" /> {/* spacer pra centralizar */}
+          <span className="text-[#F3E8FF]/40 text-xs font-bold uppercase tracking-[0.2em]">
+            Resultado
+          </span>
         </div>
       </header>
 
@@ -124,7 +116,7 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
 
         {/* Link do perfil */}
         {profileUrl && (
-          <div className="w-full max-w-md mx-auto space-y-3">
+          <div className="w-full space-y-3">
             {isPaid ? (
               <div className="bg-green-500/[0.06] border border-green-500/15 rounded-2xl p-4 text-center space-y-3">
                 <p className="text-green-400 text-sm font-medium flex items-center justify-center gap-1.5">

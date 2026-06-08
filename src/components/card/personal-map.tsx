@@ -29,7 +29,7 @@ export function PersonalMap({ data, primary = '#A855F7', secondary = '#EC4899' }
   const rings = [0.25, 0.5, 0.75, 1]
 
   return (
-    <div className="w-full max-w-md bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
+    <div className="w-full bg-white/[0.03] border border-white/[0.06] rounded-2xl p-5">
       <div className="flex items-center gap-2 mb-4">
         <span className="text-xl">🧭</span>
         <h3 className="text-white font-black text-lg">Mapa Pessoal</h3>
