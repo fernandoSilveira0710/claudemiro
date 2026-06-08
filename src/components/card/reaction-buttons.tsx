@@ -8,11 +8,12 @@ interface ReactionButtonsProps {
   veredictId: string
   initialLikes?: number
   initialDislikes?: number
+  disabled?: boolean
 }
 
 type Mine = 'like' | 'dislike' | null
 
-export function ReactionButtons({ veredictId, initialLikes = 0, initialDislikes = 0 }: ReactionButtonsProps) {
+export function ReactionButtons({ veredictId, initialLikes = 0, initialDislikes = 0, disabled = false }: ReactionButtonsProps) {
   const [likes, setLikes] = useState(initialLikes)
   const [dislikes, setDislikes] = useState(initialDislikes)
   const [mine, setMine] = useState<Mine>(null)
@@ -33,7 +34,7 @@ export function ReactionButtons({ veredictId, initialLikes = 0, initialDislikes 
   }, [veredictId])
 
   async function react(reaction: 'like' | 'dislike') {
-    if (pending) return
+    if (pending || disabled) return
     setPending(true)
     // otimista
     const prev = { likes, dislikes, mine }
@@ -56,11 +57,13 @@ export function ReactionButtons({ veredictId, initialLikes = 0, initialDislikes 
   }
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-col items-center gap-2">
+      <div className={`flex items-center gap-3 ${disabled ? 'opacity-60' : ''}`}>
       <motion.button
-        whileTap={{ scale: 0.85 }}
+        whileTap={disabled ? {} : { scale: 0.85 }}
         onClick={() => react('like')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${
+        disabled={disabled}
+        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${disabled ? 'cursor-not-allowed' : ''} ${
           mine === 'like'
             ? 'bg-[#EC4899]/20 border-[#EC4899]/50 text-[#EC4899]'
             : 'bg-white/[0.03] border-white/10 text-[#F3E8FF]/70 hover:bg-white/[0.06]'
@@ -71,9 +74,10 @@ export function ReactionButtons({ veredictId, initialLikes = 0, initialDislikes 
       </motion.button>
 
       <motion.button
-        whileTap={{ scale: 0.85 }}
+        whileTap={disabled ? {} : { scale: 0.85 }}
         onClick={() => react('dislike')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${
+        disabled={disabled}
+        className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors ${disabled ? 'cursor-not-allowed' : ''} ${
           mine === 'dislike'
             ? 'bg-white/10 border-white/30 text-white'
             : 'bg-white/[0.03] border-white/10 text-[#F3E8FF]/70 hover:bg-white/[0.06]'
@@ -82,6 +86,8 @@ export function ReactionButtons({ veredictId, initialLikes = 0, initialDislikes 
         <ThumbsDown size={18} fill={mine === 'dislike' ? 'currentColor' : 'none'} />
         <span className="font-bold text-sm tabular-nums">{dislikes}</span>
       </motion.button>
+      </div>
+      {disabled && <span className="text-[#F3E8FF]/30 text-[11px]">Você não pode votar na própria criação</span>}
     </div>
   )
 }

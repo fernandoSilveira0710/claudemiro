@@ -98,6 +98,11 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
     try {
       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestVeredict: true, sessionId, frameType: selectedFrame, baseImageUrl: selectedImage, track: selectedTrack }) })
       const data = await res.json(); const v = data.veredict || data
+      // veredito pronto → abre a PÁGINA INTEIRA de resultado (não um modal)
+      if (v?.id || data.veredictId) {
+        window.location.href = `/resultado/${v.id || data.veredictId}`
+        return
+      }
       setVeredict({ ...v, frame_type: selectedFrame, card_image_url: v?.card_image_url || null, base_image_url: selectedImage, music_track: selectedTrack || v?.music_track })
       await new Promise(r => setTimeout(r, 400)); setShowCard(true)
     } catch (err) { console.error(err); setThoughts(prev => [...prev, '⚠️ Algo deu errado. Tenta de novo.']) }

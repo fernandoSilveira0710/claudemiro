@@ -1,5 +1,7 @@
 import { createServerSupabase } from '@/lib/supabase/server'
 import { VeredictCard } from '@/components/card/veredict-card'
+import { VeredictDetails } from '@/components/card/veredict-details'
+import { ShareLink } from '@/components/card/share-link'
 import { ShareButtons } from '@/components/share-buttons'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
 import { Badge } from '@/components/ui/badge'
@@ -110,20 +112,23 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
         </div>
 
         {/* Card */}
-        <VeredictCard veredict={veredict} plan={profile?.plan || 'FREE'} />
+        <div className="flex justify-center">
+          <VeredictCard veredict={veredict} plan={profile?.plan || 'FREE'} />
+        </div>
+
+        {/* Detalhes: veredito completo, mapa pessoal, reações, highlights, música */}
+        <VeredictDetails veredict={veredict} isOwner={isOwner} />
 
         {/* Link do perfil */}
         {profileUrl && (
           <div className="w-full max-w-md mx-auto space-y-3">
             {isPaid ? (
-              <div className="bg-green-500/[0.06] border border-green-500/15 rounded-2xl p-4 text-center space-y-1">
+              <div className="bg-green-500/[0.06] border border-green-500/15 rounded-2xl p-4 text-center space-y-3">
                 <p className="text-green-400 text-sm font-medium flex items-center justify-center gap-1.5">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   Perfil público ativo
                 </p>
-                <a href={profileUrl} className="text-[#F3E8FF]/50 hover:text-[#F3E8FF] text-xs font-mono transition-colors">
-                  claudemiro.vercel.app{profileUrl}
-                </a>
+                <ShareLink path={profileUrl} />
               </div>
             ) : (
               <div className="bg-amber-500/[0.06] border border-amber-500/15 rounded-2xl p-4 space-y-3">
