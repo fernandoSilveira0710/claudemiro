@@ -384,7 +384,7 @@ export function ChatInterface() {
 
           <div className="space-y-5 pb-4">
             <AnimatePresence>
-              {messages.map((msg, i) => (
+              {messages.filter((m: any) => !m._system).map((msg, i) => (
                 <motion.div key={i}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}

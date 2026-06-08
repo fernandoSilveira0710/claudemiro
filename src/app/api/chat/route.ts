@@ -341,6 +341,25 @@ REGRAS FINAIS:
 }
 
 // ============================================================
+// Helpers
+// ============================================================
+function getPhaseData(s: any): Record<string, any> {
+  if (s.phase_data && Object.keys(s.phase_data).length > 0) return s.phase_data
+  const msgs = s.messages || []
+  const sys = msgs.find((m: any) => m._system)
+  return sys?.phase_data || {}
+}
+function getScannedData(s: any): Record<string, any> {
+  if (s.scanned_data && Object.keys(s.scanned_data).length > 0) return s.scanned_data
+  const msgs = s.messages || []
+  const sys = msgs.find((m: any) => m._system)
+  return sys?.scanned_data || {}
+}
+function buildMetaMessage(phase_data: Record<string, any>, scanned_data?: Record<string, any>) {
+  return { _system: true, phase_data, scanned_data: scanned_data || {} }
+}
+
+// ============================================================
 // POST
 // ============================================================
 export async function POST(req: Request) {
@@ -351,7 +370,7 @@ export async function POST(req: Request) {
   const { message, mode, blockedTopics, sessionId, undo, requestVeredict, frameType, baseImageUrl, track } = await req.json()
   const blocked = blockedTopics || []
 
-  if (!message || message === '__START__') {
+  if (!requestVeredict && (!message || message === '__START__')) {
     let raw: ScannedUserData = {}
     try { raw = await scanUserData(user.id) } catch {}
     const dataStr = digest(raw)
@@ -370,18 +389,18 @@ export async function POST(req: Request) {
     const dialogPrompt = buildDialogPrompt(dataStr, '', mode, reasoning)
     const dialogJson = await chatCompletion([{ role: 'user', content: dialogPrompt }], undefined, { temperature: 0.8, maxTokens: 400, json: true })
     const parsed = sanitizeParsed(safeParse(dialogJson))
+    const initPd = {
+      blockedTopics: blocked,
+      connectedPlatforms,
+      askedCategories: [reasoning.category].filter(Boolean),
+      askedQuestions: [parsed.question].filter(Boolean),
+      askedSlots: firstSlot ? [{ key: firstSlot.key, count: 1 }] : [],
+      lastSlotKey: firstSlot?.key || null,
+    }
+    const metaMsg = buildMetaMessage(initPd, raw)
     const { data: session } = await supabase.from('chat_sessions').insert({
-      user_id: user.id, mode, phase: 'chat', status: 'active',
-      messages: [{ role: 'claudemiro', content: dialogJson, parsed, reasoning }],
-      phase_data: {
-        blockedTopics: blocked,
-        connectedPlatforms,
-        askedCategories: [reasoning.category].filter(Boolean),
-        askedQuestions: [parsed.question].filter(Boolean),
-        askedSlots: firstSlot ? [{ key: firstSlot.key, count: 1 }] : [],
-        lastSlotKey: firstSlot?.key || null,
-      },
-      scanned_data: raw,
+      user_id: user.id, mode,
+      messages: [metaMsg, { role: 'claudemiro', content: dialogJson, parsed, reasoning }],
     }).select().single()
     return NextResponse.json({ type: 'start', parsed, sessionId: session?.id, interactionCount: 1 })
   }
@@ -410,84 +429,134 @@ export async function POST(req: Request) {
     const { data: s } = await supabase.from('chat_sessions').select('*').eq('id', sessionId).single()
     if (!s) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     const msgs = s.messages || []
-    const resultRaw = await chatCompletion([{ role: 'user', content: buildVeredictPrompt(s.scanned_data || {}, msgs, s.mode) }], undefined, { temperature: 0.9, maxTokens: 3000, json: true })
+
+    // Se já tem veredict em cache no _system, retorna ele (evita duplicar)
+    const sysMeta = msgs.find((m: any) => m._system)
+    if (sysMeta?._veredict_cache) {
+      return NextResponse.json({ type: 'veredict', veredict: sysMeta._veredict_cache })
+    }
+
+    // Limita histórico pra não explodir tokens (só user+assistant, sem _system, últimos 20 pares)
+    const chatMsgs = msgs.filter((m: any) => !m._system && (m.role === 'user' || m.role === 'claudemiro')).slice(-40)
+    const lightMsgs = chatMsgs.map(({ role, content }: any) => ({ role, content: typeof content === 'string' ? content.slice(0, 500) : '' }))
+
+    const resultRaw = await chatCompletion([{ role: 'user', content: buildVeredictPrompt(getScannedData(s) || s.scanned_data || {}, lightMsgs, s.mode) }], undefined, { temperature: 0.7, maxTokens: 6000, json: true })
     let veredict: any
     try { veredict = JSON.parse(resultRaw.replace(/```json\s*|\s*```/g, '').trim()) } catch { return NextResponse.json({ error: 'Falha', raw: resultRaw }, { status: 500 }) }
+
+    // Garante que TODOS os campos do card existam (fill defaults se a IA omitir)
+    const defaultSkills = [{ name: 'Carisma', emoji: '😎', value: 50 }, { name: 'Humor', emoji: '😂', value: 50 }, { name: 'Sabedoria', emoji: '🧠', value: 50 }, { name: 'Coragem', emoji: '🦁', value: 50 }, { name: 'Estilo', emoji: '💅', value: 50 }]
+    const defaultTags = [{ name: 'Personalidade', emoji: '🎭', percentage: 70 }, { name: 'Originalidade', emoji: '✨', percentage: 60 }, { name: 'Determinação', emoji: '🎯', percentage: 55 }, { name: 'Criatividade', emoji: '🎨', percentage: 50 }, { name: 'Foco', emoji: '🔍', percentage: 45 }]
+    const defaultMap = [{ axis: 'Vida', value: 50, comment: 'Em construção 🚧' }, { axis: 'Redes', value: 50, comment: 'Dá pra melhorar 📈' }, { axis: 'Humor', value: 50, comment: 'Tem potencial 😄' }, { axis: 'Estilo', value: 50, comment: 'Mistério total 🕵️' }, { axis: 'Foco', value: 50, comment: 'Morno 🌡️' }]
+    veredict = {
+      main_trait: veredict.main_trait || 'Mistério',
+      veredict_badge: veredict.badge || veredict.veredict_badge || 'Tu é uma incógnita',
+      veredict_text: veredict.veredict_text || 'O Claudemiro analisou mas os dados são insuficientes para um veredito completo.',
+      overall: typeof veredict.overall === 'number' ? veredict.overall : 50,
+      skills: Array.isArray(veredict.skills) && veredict.skills.length >= 3 ? veredict.skills : defaultSkills,
+      hashtags: Array.isArray(veredict.hashtags) && veredict.hashtags.length >= 2 ? veredict.hashtags : ['#misterioso', '#offline', '#lowprofile'],
+      summary_short: veredict.summary_short || 'Uma pessoa que prefere o anonimato... por enquanto.',
+      personal_map: Array.isArray(veredict.personal_map) && veredict.personal_map.length >= 3 ? veredict.personal_map : defaultMap,
+      tags: Array.isArray(veredict.tags) && veredict.tags.length >= 3 ? veredict.tags : defaultTags,
+      image_style: veredict.image_style || 'casual',
+      image_brief: veredict.image_brief || {},
+      niche: veredict.niche || 'padrao',
+      niche_colors: veredict.niche_colors || { primary: '#8B5CF6', secondary: '#EC4899', accent: '#F59E0B' },
+      profession_label: veredict.profession_label || 'Cidadão da internet',
+      tips: veredict.tips || ['Poste mais', 'Interaja mais', 'Seja mais você'],
+      music_track: track || veredict.music_track || undefined,
+      final_opinion: veredict.final_opinion || 'Ainda é cedo pra julgar. Mas fica de olho...',
+      network_highlights: veredict.network_highlights || [],
+      user_name: veredict.user_name || undefined,
+    }
     const { data: saved, error: insertErr } = await supabase.from('veredits').insert({
       user_id: user.id, mode: s.mode, veredict_text: veredict.veredict_text, veredict_badge: veredict.veredict_badge,
-      tags: veredict.tags, niche: veredict.niche, niche_colors: veredict.niche_colors, profession_label: veredict.profession_label, tips: veredict.tips,
+      tags: veredict.tags, niche: veredict.niche, niche_colors: veredict.niche_colors,
       frame_type: frameType || 'cinza', base_image_url: baseImageUrl || null,
       music_track: track || veredict.music_track || null,
       main_trait: veredict.main_trait, overall: veredict.overall, skills: veredict.skills,
       hashtags: veredict.hashtags, summary_short: veredict.summary_short, personal_map: veredict.personal_map,
       image_style: veredict.image_style, image_brief: veredict.image_brief,
     }).select().single()
+    const insertErrorMsg = insertErr?.message || (saved ? null : 'no rows returned')
     if (insertErr) console.error('Veredit insert failed:', insertErr.message)
 
-    // Gera a imagem do card via Gemini (não bloqueia o veredito se falhar)
+    // Gera a imagem do card via Gemini (INDEPENDE do insert no banco!)
     let cardImageUrl: string | null = null
     let imageError: string | null = null
-    if (saved?.id) {
-      try {
-        const style: ImageStyle = (veredict.image_style as ImageStyle) || 'engracado'
-        const brief: ImageBrief = (veredict.image_brief as ImageBrief) || {}
-        const { prompt } = buildImagePrompt({
-          data: s.scanned_data || {},
-          brief,
-          style,
-          hasReferenceImage: !!baseImageUrl,
-        })
-        const img = await generateCardImage(prompt, baseImageUrl || undefined)
-        const buffer = Buffer.from(img.base64, 'base64')
-        const fileName = `cards/${user.id}/${saved.id}.png`
-        const { error: upErr } = await supabase.storage
-          .from('cards')
-          .upload(fileName, buffer, { contentType: 'image/png', upsert: true })
-        if (upErr) {
-          imageError = `storage: ${upErr.message}`
-        } else {
-          const { data: pub } = supabase.storage.from('cards').getPublicUrl(fileName)
-          cardImageUrl = pub.publicUrl
+    try {
+      const style: ImageStyle = (veredict.image_style as ImageStyle) || 'engracado'
+      const brief: ImageBrief = (veredict.image_brief as ImageBrief) || {}
+      const { prompt } = buildImagePrompt({
+        data: getScannedData(s) || s.scanned_data || {},
+        brief,
+        style,
+        hasReferenceImage: !!baseImageUrl,
+      })
+      const img = await generateCardImage(prompt, baseImageUrl || undefined)
+      const buffer = Buffer.from(img.base64, 'base64')
+      // Usa o ID do veredito salvo, ou gera UUID temporário pro storage
+      const vid = saved?.id || crypto.randomUUID()
+      const fileName = `cards/${user.id}/${vid}.png`
+      const { error: upErr } = await supabase.storage
+        .from('cards')
+        .upload(fileName, buffer, { contentType: 'image/png', upsert: true })
+      if (upErr) {
+        imageError = `storage: ${upErr.message}`
+        // Fallback: retorna data URL direto se bucket não existir
+        cardImageUrl = `data:${img.mimeType || 'image/png'};base64,${img.base64}`
+      } else {
+        const { data: pub } = supabase.storage.from('cards').getPublicUrl(fileName)
+        cardImageUrl = pub.publicUrl
+        if (saved?.id) {
           await supabase.from('veredits').update({
             card_image_url: cardImageUrl,
             image_source: baseImageUrl ? 'network' : 'generated',
             image_prompt: prompt,
           }).eq('id', saved.id)
         }
-      } catch (e) {
-        imageError = e instanceof Error ? e.message : String(e)
-        console.error('Gemini card image failed:', imageError)
       }
+    } catch (e) {
+      imageError = e instanceof Error ? e.message : String(e)
+      console.error('Gemini card image failed:', imageError)
     }
     // marca geração pro gate temporal
     await supabase.from('profiles').update({ last_generation_at: new Date().toISOString() }).eq('id', user.id)
-    const vmsg = `🔮 *VEREDITO*\n\n${veredict.veredict_text}\n\n🏷️ ${veredict.veredict_badge || ''}`
-    msgs.push({ role: 'claudemiro', content: vmsg, veredict: true })
-    await supabase.from('chat_sessions').update({ phase: 'done', status: 'completed', messages: msgs }).eq('id', sessionId)
-    return NextResponse.json({ type: 'veredict', content: vmsg, veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, card_image_url: cardImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, messages: msgs, _debug: { insertOk: !!saved, imageError, hasMainTrait: !!veredict.main_trait, hasOverall: typeof veredict.overall === 'number', skillsCount: veredict.skills?.length || 0 } })
+    // NÃO salva o veredict no chat — só retorna pro wizard. 
+    // Salva cache no _system pra evitar regenerar
+    const sysIdx = msgs.findIndex((m: any) => m._system)
+    const sysMsg = buildMetaMessage(getPhaseData(s) || {}, getScannedData(s) || {})
+    sysMsg._veredict_cache = { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, card_image_url: cardImageUrl, music_track: track || veredict.music_track }
+    if (sysIdx >= 0) msgs[sysIdx] = sysMsg; else msgs.push(sysMsg)
+    await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', sessionId)
+    return NextResponse.json({ type: 'veredict', veredict: { ...veredict, id: saved?.id, frame_type: frameType || 'cinza', base_image_url: baseImageUrl, card_image_url: cardImageUrl, music_track: track || veredict.music_track }, veredictId: saved?.id, _debug: { insertOk: !!saved, insertErr: insertErrorMsg, imageError, hasMainTrait: !!veredict.main_trait, hasOverall: typeof veredict.overall === 'number', skillsCount: veredict.skills?.length || 0 } })
   }
 
   const { data: s } = await supabase.from('chat_sessions').select('*')
-    .eq(sessionId ? 'id' : 'user_id', sessionId || user.id).eq('status', 'active')
+    .eq(sessionId ? 'id' : 'user_id', sessionId || user.id)
     .order('created_at', { ascending: false }).limit(1).single()
   if (!s) return NextResponse.json({ error: 'No active session' }, { status: 404 })
 
+  // phase_data pode vir da coluna ou de mensagem _meta (fallback)
+  const pd = getPhaseData(s)
+  const sd = getScannedData(s) || s.scanned_data || {}
+
   const msgs = [...(s.messages || []), { role: 'user', content: message }]
-  const asked = s.phase_data?.askedCategories || []
-  const askedQuestions = s.phase_data?.askedQuestions || []
-  const askedSlots: AskedSlot[] = s.phase_data?.askedSlots || []
-  const lastSlotKey: string | null = s.phase_data?.lastSlotKey || null
-  const dataStr = digest(s.scanned_data || {})
+  const asked: string[] = pd.askedCategories || []
+  const askedQuestions: string[] = pd.askedQuestions || []
+  const askedSlots: AskedSlot[] = pd.askedSlots || []
+  const lastSlotKey: string | null = pd.lastSlotKey || null
+  const dataStr = digest(sd)
   const hist = formatHistoryString(msgs)
 
-  // ── PLANNER: o código decide o próximo slot (rede ou tópico) ──
-  const connectedPlatforms: string[] = (s.phase_data?.connectedPlatforms || [])
-  const blockedT = s.phase_data?.blockedTopics || []
+  // ── PLANNER ──
+  const connectedPlatforms: string[] = pd.connectedPlatforms || []
+  const blockedT: string[] = pd.blockedTopics || []
   const slots = buildSlots(connectedPlatforms, blockedT)
   const totalAsked = askedSlots.reduce((sum, a) => sum + a.count, 0)
   const nextSlot = pickNextSlot(slots, askedSlots, lastSlotKey, MAX_INTERACTIONS, totalAsked)
 
-  // reasoning sintético a partir do slot do planner
+  // reasoning sintético
   let reasoning: any
   if (nextSlot && totalAsked < MAX_INTERACTIONS) {
     const slotCount = askedSlots.find(a => a.key === nextSlot.key)?.count || 0
@@ -495,20 +564,24 @@ export async function POST(req: Request) {
       category: nextSlot.key,
       data_source: nextSlot.type === 'network' ? nextSlot.key.toUpperCase() : 'TOPICO',
       data_hook: null,
-      angle: slotInstructions(nextSlot, s.scanned_data || {}, slotCount),
+      angle: slotInstructions(nextSlot, sd, slotCount),
       tone_note: '',
     }
   } else {
     reasoning = { category: 'veredito', data_source: 'TOPICO', data_hook: null, angle: '', tone_note: '' }
   }
 
-  // Fim do chat: planner não tem mais slot OU atingiu o limite.
+  // Fim do chat
   if (reasoning.category === 'veredito' || totalAsked >= MAX_INTERACTIONS || !nextSlot) {
     const lastMsg = msgs[msgs.length - 1]
     if (!lastMsg?.parsed?.isVeredictOffer) {
-      const parsed: any = { comment: 'Já tenho uma opinião formada sobre você. ��', question: '', isVeredictOffer: true }
+      const parsed: any = { comment: 'Já tenho uma opinião formada sobre você. 😏', question: '', isVeredictOffer: true }
       msgs.push({ role: 'claudemiro', content: '', parsed })
-      await supabase.from('chat_sessions').update({ messages: msgs, phase_data: { ...s.phase_data } }).eq('id', s.id)
+      // salva meta no messages (fallback pra coluna que não existe)
+      const metaIdx = msgs.findIndex((m: any) => m._system)
+      const metaMsg = buildMetaMessage(pd, sd)
+      if (metaIdx >= 0) msgs[metaIdx] = metaMsg; else msgs.push(metaMsg)
+      await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', s.id)
       return NextResponse.json({ type: 'reply', parsed, interactionCount: totalAsked, suggestVeredict: true, sessionId: s.id })
     }
     return NextResponse.json({ type: 'noop', interactionCount: totalAsked, suggestVeredict: true, sessionId: s.id })
@@ -520,7 +593,7 @@ export async function POST(req: Request) {
   const parsed = sanitizeParsed(safeParse(dialogJson))
   msgs.push({ role: 'claudemiro', content: dialogJson, parsed, reasoning })
 
-  // rastreamento de slots (planner)
+  // rastreamento de slots
   const newAskedSlots: AskedSlot[] = [...askedSlots]
   const existing = newAskedSlots.find(a => a.key === nextSlot!.key)
   if (existing) existing.count++
@@ -529,21 +602,26 @@ export async function POST(req: Request) {
 
   const newAsked = [...asked, reasoning.category].filter(Boolean)
   const newAskedQuestions = [...askedQuestions, parsed.question].filter(Boolean)
-  await supabase.from('chat_sessions').update({
-    messages: msgs,
-    phase_data: { ...s.phase_data, askedCategories: newAsked, askedQuestions: newAskedQuestions, askedSlots: newAskedSlots, lastSlotKey: nextSlot!.key }
-  }).eq('id', s.id)
+  const newPd = { ...pd, askedCategories: newAsked, askedQuestions: newAskedQuestions, askedSlots: newAskedSlots, lastSlotKey: nextSlot!.key }
+
+  // salva meta no array de mensagens (coluna phase_data pode não existir)
+  const metaIdx2 = msgs.findIndex((m: any) => m._system)
+  const metaMsg2 = buildMetaMessage(newPd, sd)
+  if (metaIdx2 >= 0) msgs[metaIdx2] = metaMsg2; else msgs.push(metaMsg2)
+
+  const { error: updateErr } = await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', s.id)
+  if (updateErr) console.error('Session update failed:', updateErr.message)
 
   const hasQuestion = !!(parsed.question && parsed.question.trim())
   const suggestNow = newTotalAsked >= MAX_INTERACTIONS && !hasQuestion
-  return NextResponse.json({ type: 'reply', parsed, interactionCount: newTotalAsked, suggestVeredict: suggestNow, sessionId: s.id })
+  return NextResponse.json({ type: 'reply', parsed, interactionCount: newTotalAsked, suggestVeredict: suggestNow, sessionId: s.id, _slots: { askedSlots: newAskedSlots, lastKey: nextSlot!.key, total: newTotalAsked } })
 }
 
 export async function GET() {
   const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: s } = await supabase.from('chat_sessions').select('*').eq('user_id', user.id).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single()
+  const { data: s } = await supabase.from('chat_sessions').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(1).single()
   if (!s) return NextResponse.json({ hasSession: false })
 
   // Calcula interactionCount a partir das mensagens (pares user+claudemiro)
