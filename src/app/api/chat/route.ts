@@ -4,6 +4,7 @@ import { scanUserData, ScannedUserData } from '@/lib/scanner'
 import { buildVeredictPrompt } from '@/lib/card-generator'
 import { generateCardImage } from '@/lib/gemini-image'
 import { buildImagePrompt, type ImageBrief, type ImageStyle } from '@/lib/image-prompt-builder'
+import { extractMetrics, generateGoals, checkGoals, calcProgression } from '@/lib/progression'
 import { buildSlots, pickNextSlot, slotInstructions, AskedSlot } from '@/lib/coverage-planner'
 import { NextResponse } from 'next/server'
 
@@ -436,6 +437,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ type: 'veredict', veredict: sysMeta._veredict_cache })
     }
 
+    // Gate de plano: FREE = 1 veredict, FLEX/PRO = ilimitado
+    const { data: planRow } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
+    const plan = planRow?.plan || 'FREE'
+    if (plan === 'FREE') {
+      const { count } = await supabase.from('veredits').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+      if (count && count >= 1) {
+        return NextResponse.json({ error: 'FREE_LIMIT', message: 'Plano FREE: apenas 1 veredict. Upgrade para gerar mais.' }, { status: 402 })
+      }
+    }
+
     // Limita histórico pra não explodir tokens (só user+assistant, sem _system, últimos 20 pares)
     const chatMsgs = msgs.filter((m: any) => !m._system && (m.role === 'user' || m.role === 'claudemiro')).slice(-40)
     const lightMsgs = chatMsgs.map(({ role, content }: any) => ({ role, content: typeof content === 'string' ? content.slice(0, 500) : '' }))
@@ -471,8 +482,8 @@ export async function POST(req: Request) {
       user_name: veredict.user_name || undefined,
     }
     // pagos têm perfil público → veredito visível em /u/[username]
-    const { data: planRow } = await supabase.from('profiles').select('plan').eq('id', user.id).single()
-    const isPaidUser = planRow?.plan === 'FLEX' || planRow?.plan === 'PRO'
+    // pagos têm perfil público
+    const isPaidUser = plan === 'FLEX' || plan === 'PRO'
 
     // Enriquece a música escolhida com previewUrl/spotifyUrl do scanner (clipe de 30s)
     let musicTrack = track || veredict.music_track || null
@@ -491,6 +502,24 @@ export async function POST(req: Request) {
       }
     }
 
+    // ── Progressão: compara com o veredito anterior ──
+    const scannedNow = getScannedData(s) || s.scanned_data || {}
+    const currentMetrics = extractMetrics(scannedNow)
+    const newGoals = generateGoals(currentMetrics)
+
+    const { data: prevVeredict } = await supabase
+      .from('veredits')
+      .select('id, skills, goals')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    const checkedGoals = checkGoals(prevVeredict?.goals, currentMetrics)
+    const progression = prevVeredict
+      ? calcProgression(prevVeredict.skills, veredict.skills, checkedGoals)
+      : null
+
     const { data: saved, error: insertErr } = await supabase.from('veredits').insert({
       user_id: user.id, mode: s.mode, veredict_text: veredict.veredict_text, veredict_badge: veredict.veredict_badge,
       tags: veredict.tags, niche: veredict.niche, niche_colors: veredict.niche_colors,
@@ -498,6 +527,8 @@ export async function POST(req: Request) {
       music_track: musicTrack,
       main_trait: veredict.main_trait, overall: veredict.overall, skills: veredict.skills,
       summary_emoji: veredict.summary_emoji,
+      metrics: currentMetrics, goals: newGoals, progression,
+      previous_veredict_id: prevVeredict?.id || null,
       hashtags: veredict.hashtags, summary_short: veredict.summary_short, personal_map: veredict.personal_map,
       image_style: veredict.image_style, image_brief: veredict.image_brief,
       is_public: isPaidUser,

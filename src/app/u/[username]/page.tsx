@@ -1,9 +1,43 @@
 import { createServerSupabase } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
+import type { Metadata } from 'next'
 import { VeredictCard } from '@/components/card/veredict-card'
 import { ShareButtons } from '@/components/share-buttons'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
 import { Badge } from '@/components/ui/badge'
+
+export async function generateMetadata({ params }: { params: Promise<{ username: string }> }): Promise<Metadata> {
+  const { username } = await params
+  const supabase = await createServerSupabase()
+  const { data: profile } = await supabase.from('profiles').select('id, username, display_name').eq('username', username).single()
+  if (!profile) return { title: 'Claudemiro' }
+
+  const { data: v } = await supabase
+    .from('veredits')
+    .select('veredict_badge, card_image_url, summary_short')
+    .eq('user_id', profile.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const title = v?.veredict_badge ? `${v.veredict_badge} — @${username}` : `@${username} no Claudemiro`
+  const description = v?.summary_short || 'O Claudemiro analisou as redes e cravou o veredito. Descubra o seu.'
+  const image = v?.card_image_url
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title, description, type: 'profile',
+      images: image ? [{ url: image, width: 600, height: 900, alt: title }] : undefined,
+    },
+    twitter: {
+      card: image ? 'summary_large_image' : 'summary',
+      title, description,
+      images: image ? [image] : undefined,
+    },
+  }
+}
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params

@@ -11,6 +11,7 @@ interface VeredictCardProps {
     id?: string
     main_trait?: string
     summary_emoji?: string
+    progression?: { overall_delta: number; skills: { name: string; delta: number }[]; goals_met: number; goals_total: number }
     veredict_badge: string
     overall?: number
     card_image_url?: string
@@ -187,10 +188,12 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
             <p className="text-white font-black text-sm leading-tight">{veredict.veredict_badge}</p>
           </div>
 
-          {/* SKILLS (maiores, destaque) */}
+          {/* SKILLS (maiores, destaque) + setas de progressão */}
           {topSkills.length > 0 && (
             <div className="relative z-20 mx-3 mt-3 space-y-2.5">
-              {topSkills.map((s, i) => (
+              {topSkills.map((s, i) => {
+                const delta = veredict.progression?.skills?.find(d => d.name === s.name)?.delta ?? 0
+                return (
                 <div key={i} className="flex items-center gap-2.5">
                   <span className="text-lg w-6 text-center shrink-0">{s.emoji}</span>
                   <span className="text-white text-[13px] font-bold w-[96px] truncate shrink-0">{s.name}</span>
@@ -200,9 +203,14 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
                       initial={{ width: 0 }} animate={{ width: `${s.value}%` }}
                       transition={{ delay: 0.4 + i * 0.1, duration: 0.8 }} />
                   </div>
+                  {delta !== 0 && (
+                    <span className={`text-[10px] font-black shrink-0 ${delta > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {delta > 0 ? '▲' : '▼'}{Math.abs(delta)}
+                    </span>
+                  )}
                   <span className="text-white font-black text-sm w-7 text-right tabular-nums shrink-0">{s.value}</span>
                 </div>
-              ))}
+              )})}
             </div>
           )}
 
@@ -231,7 +239,7 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
       </div>
     </motion.div>
     {cardImg && (
-      <div className="flex justify-center mt-4">
+      <div className="flex justify-center mt-4" data-no-export>
         <DownloadCardBtn veredict={veredict} />
       </div>
     )}

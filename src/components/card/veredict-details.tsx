@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { PersonalMap } from './personal-map'
 import { ReactionButtons } from './reaction-buttons'
 import { MusicPlayer } from './music-player'
+import { GoalsPanel } from './goals-panel'
 
 interface MapAxis { axis: string; value: number; comment?: string }
 interface NetworkHighlight { platform: string; icon: string; label: string; value: string }
@@ -19,6 +20,8 @@ interface VeredictDetailsProps {
     niche_colors?: { primary: string; secondary: string; accent: string }
     likes_count?: number
     dislikes_count?: number
+    goals?: { id: string; emoji: string; label: string; done?: boolean }[]
+    progression?: { overall_delta: number; goals_met: number; goals_total: number } | null
   }
   isOwner?: boolean
 }
@@ -53,6 +56,9 @@ export function VeredictDetails({ veredict, isOwner = false }: VeredictDetailsPr
       {veredict.personal_map && veredict.personal_map.length > 0 && (
         <PersonalMap data={veredict.personal_map} primary={primary} secondary={secondary} />
       )}
+
+      {/* progressão + metas */}
+      <GoalsPanel goals={veredict.goals} progression={veredict.progression} primary={primary} />
 
       {/* reações */}
       {veredict.id && (
