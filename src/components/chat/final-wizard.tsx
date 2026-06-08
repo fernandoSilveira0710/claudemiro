@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ClaudemiroBot } from '@/components/claudemiro-bot'
 import { VeredictCard } from '@/components/card/veredict-card'
@@ -124,10 +124,32 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
     } catch {}
   }
 
-  const handleDownload = () => {
-    if (!veredict?.card_image_url) return
-    const a = document.createElement('a'); a.href = veredict.card_image_url
-    a.download = `claudemiro-${(veredict.veredict_badge || 'card').replace(/\s/g, '-')}.png`; a.click()
+  const handleDownload = async () => {
+    if (!veredict) return
+    try {
+      const { domToPng } = await import('modern-screenshot')
+      const cardEl = document.querySelector('[data-card-download]') as HTMLElement | null || document.querySelector('.veredict-card-root') as HTMLElement | null
+      if (!cardEl) {
+        // fallback: baixa só a imagem
+        if (veredict.card_image_url) {
+          const a = document.createElement('a'); a.href = veredict.card_image_url
+          a.download = `claudemiro-${(veredict.veredict_badge || 'card').replace(/\\s/g, '-')}.png`; a.click()
+        }
+        return
+      }
+      const dataUrl = await domToPng(cardEl, {
+        backgroundColor: '#0D0221',
+        scale: 2,
+      })
+      const a = document.createElement('a'); a.href = dataUrl
+      a.download = `claudemiro-${(veredict.veredict_badge || 'card').replace(/\s/g, '-')}.png`; a.click()
+    } catch {
+      // fallback
+      if (veredict?.card_image_url) {
+        const a = document.createElement('a'); a.href = veredict.card_image_url
+        a.download = `claudemiro-${(veredict.veredict_badge || 'card').replace(/\\s/g, '-')}.png`; a.click()
+      }
+    }
   }
 
   const Bot = ({ size, pulsing }: { size: number; pulsing?: boolean }) => (

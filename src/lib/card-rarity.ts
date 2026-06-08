@@ -30,9 +30,20 @@ export const RARITIES: Record<CardRarity, RarityInfo> = {
   RADIANT:      { id: 'RADIANT',      label: 'Radiante',     emoji: '💫', tier: 'flex' },
 }
 
-/** Sorteia raridade baseado no plano */
-export function rollRarity(plan: 'FREE' | 'FLEX' | 'PRO'): CardRarity {
-  const r = Math.random()
+/** Gera raridade determinística baseada no ID do veredict (seed fixo = mesma raridade sempre) */
+export function rollRarity(plan: 'FREE' | 'FLEX' | 'PRO', seed?: string): CardRarity {
+  // Se tem seed (ID do veredict), usa hash determinístico
+  let r: number
+  if (seed) {
+    let hash = 0
+    for (let i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(i)
+      hash |= 0
+    }
+    r = Math.abs(hash) / 2147483648
+  } else {
+    r = Math.random()
+  }
 
   if (plan === 'FREE') {
     // 10% chance de pegar Reverse Holo (lendária free)

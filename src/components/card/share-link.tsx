@@ -1,12 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check, Copy, Link as LinkIcon } from 'lucide-react'
 
 export function ShareLink({ path }: { path: string }) {
   const [copied, setCopied] = useState(false)
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://claudemiro.vercel.app'
-  const full = `${origin}${path}`
+  const [origin, setOrigin] = useState('')
+
+  useEffect(() => {
+    setOrigin(window.location.origin || 'https://claudemiro.vercel.app')
+  }, [])
+
+  const full = origin ? `${origin}${path}` : `${path}`
 
   async function copy() {
     try {

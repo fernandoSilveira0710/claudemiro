@@ -47,7 +47,7 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
   const cardImg = veredict.card_image_url || veredict.base_image_url
   const isFlex = plan === 'FLEX' || plan === 'PRO'
 
-  const rarity = useMemo(() => rollRarity(plan), [plan])
+  const rarity = useMemo(() => rollRarity(plan, veredict.id), [plan, veredict.id])
   const rarityInfo = RARITIES[rarity]
 
   const topSkills = (veredict.skills || []).slice(0, 4)
@@ -87,6 +87,7 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
     : `0 0 24px ${primary}33, 0 12px 40px rgba(0,0,0,0.6)`
 
   return (
+    <div data-card-download className="veredict-card-root relative w-full max-w-[360px]">
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -220,5 +221,48 @@ export function VeredictCard({ veredict, plan = 'FREE' }: VeredictCardProps) {
         </div>
       </div>
     </motion.div>
+    {cardImg && (
+      <div className="flex justify-center mt-4">
+        <DownloadCardBtn veredict={veredict} />
+      </div>
+    )}
+    </div>
   )
+}
+
+function DownloadCardBtn({ veredict }: { veredict: any }) {
+  const [loading, setLoading] = useState(false)
+  const handleDownload = async () => {
+    setLoading(true)
+    try {
+      const { domToPng } = await import('modern-screenshot')
+      const cardEl = document.querySelector('[data-card-download]') as HTMLElement | null
+      if (!cardEl) {
+        downloadRaw(veredict)
+        return
+      }
+      const dataUrl = await domToPng(cardEl, {
+        backgroundColor: '#0D0221',
+        scale: 2,
+      })
+      const a = document.createElement('a'); a.href = dataUrl
+      a.download = `claudemiro-${(veredict.veredict_badge || 'card').replace(/\s/g, '-')}.png`; a.click()
+    } catch (e) {
+      console.log('modern-screenshot failed, falling back:', e)
+      downloadRaw(veredict)
+    }
+    setLoading(false)
+  }
+  return (
+    <button onClick={handleDownload} disabled={loading}
+      className="flex items-center gap-2 bg-white/[0.05] hover:bg-white/[0.1] text-white font-bold py-3 px-6 rounded-2xl border border-white/[0.08] text-sm transition-colors">
+      {loading ? '⏳ Gerando...' : '⬇️ Baixar Card'}
+    </button>
+  )
+}
+
+function downloadRaw(veredict: any) {
+  if (!veredict?.card_image_url) return
+  const a = document.createElement('a'); a.href = veredict.card_image_url
+  a.download = `claudemiro-${(veredict.veredict_badge || 'card').replace(/\s/g, '-')}.png`; a.click()
 }

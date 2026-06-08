@@ -16,12 +16,15 @@ interface HoloEffectsProps {
 }
 
 export function CardHoloEffects({ rarity, className = '' }: HoloEffectsProps) {
+  const [mounted, setMounted] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const raf = useRef<number | null>(null)
   const [css, setCss] = useState<Record<string, string>>({
     '--mx': '50%', '--my': '50%', '--hyp': '0',
     '--rx': '0deg', '--ry': '0deg',
   })
+
+  useEffect(() => { setMounted(true) }, [])
 
   const update = useCallback((clientX: number, clientY: number) => {
     const el = ref.current; if (!el) return
@@ -52,6 +55,8 @@ export function CardHoloEffects({ rarity, className = '' }: HoloEffectsProps) {
   }
 
   useEffect(() => () => { if (raf.current) cancelAnimationFrame(raf.current) }, [])
+
+  if (!mounted) return null
 
   if (rarity === 'COMMON') {
     // Só glare básico
