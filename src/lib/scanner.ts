@@ -4,10 +4,18 @@ export interface ScannedUserData {
   spotify?: {
     topArtists: { name: string; genres: string[] }[]
     topTracks: { name: string; artist: string; previewUrl?: string | null; spotifyUrl?: string }[]
+    recentlyPlayed?: { name: string; artist: string; playedAt: string }[]
   }
   steam?: {
     profile: { personaname: string; avatarfull: string }
     games: { name: string; playtime_forever: number; playtime_2weeks?: number }[]
+  }
+  strava?: {
+    recent?: { count: number; distance_m: number; moving_time_s: number }
+    ytd?: { count: number; distance_m: number }
+  }
+  trakt?: {
+    stats?: { movies_watched: number; episodes_watched: number; shows_watched: number }
   }
   [platform: string]: any
 }
@@ -35,17 +43,21 @@ export async function scanUserData(userId: string): Promise<ScannedUserData> {
         }
 
         try {
-          const [artistsRes, tracksRes] = await Promise.all([
+          const [artistsRes, tracksRes, recentRes] = await Promise.all([
             fetch('https://api.spotify.com/v1/me/top/artists?limit=10&time_range=medium_term', {
               headers: { Authorization: `Bearer ${token}` },
             }),
             fetch('https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=medium_term', {
               headers: { Authorization: `Bearer ${token}` },
             }),
+            fetch('https://api.spotify.com/v1/me/player/recently-played?limit=50', {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
           ])
 
           const artists = await artistsRes.json()
           const tracks = await tracksRes.json()
+          const recent = recentRes.ok ? await recentRes.json() : { items: [] }
 
           data.spotify = {
             topArtists: artists.items?.map((a: any) => ({
@@ -57,6 +69,11 @@ export async function scanUserData(userId: string): Promise<ScannedUserData> {
               artist: t.artists?.[0]?.name || '',
               previewUrl: t.preview_url || null,
               spotifyUrl: t.external_urls?.spotify || undefined,
+            })) || [],
+            recentlyPlayed: recent.items?.map((it: { track?: { name?: string; artists?: { name?: string }[] }; played_at?: string }) => ({
+              name: it.track?.name || '',
+              artist: it.track?.artists?.[0]?.name || '',
+              playedAt: it.played_at || '',
             })) || [],
           }
         } catch {

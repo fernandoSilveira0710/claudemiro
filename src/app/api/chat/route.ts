@@ -9,22 +9,23 @@ import { buildSlots, pickNextSlot, slotInstructions, AskedSlot } from '@/lib/cov
 import { NextResponse } from 'next/server'
 
 export const AVAILABLE_TOPICS = [
-  { id: 'games', label: 'Games', emoji: '��' }, { id: 'animes', label: 'Animes', emoji: '��' },
-  { id: 'filmes', label: 'Filmes/Séries', emoji: '��' }, { id: 'futebol', label: 'Futebol', emoji: '⚽' },
-  { id: 'musica', label: 'Música', emoji: '��' }, { id: 'politica', label: 'Política', emoji: '��️' },
-  { id: 'religiao', label: 'Religião', emoji: '��' }, { id: 'signo', label: 'Signo/Espiritualidade', emoji: '��' },
-  { id: 'relacionamento', label: 'Relacionamento', emoji: '��' }, { id: 'carreira', label: 'Carreira/Trampo', emoji: '��' },
-  { id: 'academia', label: 'Academia/Fitness', emoji: '��' }, { id: 'internet', label: 'Tretas da Internet', emoji: '��' },
+  { id: 'games', label: 'Games', emoji: '🎮' }, { id: 'animes', label: 'Animes', emoji: '🌸' },
+  { id: 'filmes', label: 'Filmes/Séries', emoji: '🎬' }, { id: 'futebol', label: 'Futebol', emoji: '⚽' },
+  { id: 'musica', label: 'Música', emoji: '🎵' }, { id: 'politica', label: 'Política', emoji: '🗳️' },
+  { id: 'religiao', label: 'Religião', emoji: '🙏' }, { id: 'signo', label: 'Signo/Espiritualidade', emoji: '🔮' },
+  { id: 'relacionamento', label: 'Relacionamento', emoji: '💔' }, { id: 'carreira', label: 'Carreira/Trampo', emoji: '💼' },
+  { id: 'academia', label: 'Academia/Fitness', emoji: '🏋️' }, { id: 'internet', label: 'Tretas da Internet', emoji: '🌐' },
+  { id: 'leitura', label: 'Leitura/Livros', emoji: '📚' }, { id: 'saude', label: 'Corrida/Caminhada', emoji: '🏃' },
 ]
 
 const MAX_INTERACTIONS = 20
-const ALL_CATEGORIES = ['games', 'musica', 'carreira', 'hobbies', 'futebol', 'animes', 'filmes', 'familia', 'relacionamento', 'signo', 'religiao', 'politica', 'internet', 'academia', 'personalidade', 'infancia', 'sonhos', 'medos']
+const ALL_CATEGORIES = ['games', 'musica', 'carreira', 'hobbies', 'futebol', 'animes', 'filmes', 'familia', 'relacionamento', 'signo', 'religiao', 'politica', 'internet', 'academia', 'leitura', 'saude', 'personalidade', 'infancia', 'sonhos', 'medos']
 
 // Categorias que NÃO precisam de dados de rede (vida pessoal + tópicos da lista)
-const PERSONAL_CATEGORIES = ['familia', 'relacionamento', 'signo', 'religiao', 'politica', 'personalidade', 'infancia', 'sonhos', 'medos', 'futebol', 'academia', 'musica', 'animes', 'filmes', 'internet', 'carreira']
+const PERSONAL_CATEGORIES = ['familia', 'relacionamento', 'signo', 'religiao', 'politica', 'personalidade', 'infancia', 'sonhos', 'medos', 'futebol', 'academia', 'musica', 'animes', 'filmes', 'internet', 'carreira', 'leitura', 'saude']
 
 // IDs dos tópicos da tela de seleção — o que o usuário marcou como bloqueado vem daqui
-const SELECTABLE_TOPIC_IDS = ['games', 'animes', 'filmes', 'futebol', 'musica', 'politica', 'religiao', 'signo', 'relacionamento', 'carreira', 'academia', 'internet']
+const SELECTABLE_TOPIC_IDS = ['games', 'animes', 'filmes', 'futebol', 'musica', 'politica', 'religiao', 'signo', 'relacionamento', 'carreira', 'academia', 'internet', 'leitura', 'saude']
 
 // Meta: cobrir pelo menos 65% dos tópicos liberados (não bloqueados)
 const TOPIC_COVERAGE_TARGET = 0.65
@@ -73,6 +74,18 @@ function digest(data: any): string {
   }
   if (data.discord) L.push(`[DISCORD] ${data.discord.guild_count || 0} servidores`)
   if (data.twitter) L.push(`[TWITTER/X] @${data.twitter.platform_username || '?'} | ${data.twitter.followers_count || 0} seguidores | ${data.twitter.statuses_count || 0} tweets`)
+  if (data.spotify?.recentlyPlayed?.length) {
+    const recentArtists = [...new Set(data.spotify.recentlyPlayed.map((t: any) => t.artist).filter(Boolean))].slice(0, 6)
+    L.push(`[SPOTIFY RECENTE] Ouviu por último: ${recentArtists.join(', ')}`)
+  }
+  if (data.strava?.recent) {
+    const km = Math.round((data.strava.recent.distance_m || 0) / 1000)
+    const min = Math.round((data.strava.recent.moving_time_s || 0) / 60)
+    L.push(`[STRAVA] Últimas 4 semanas: ${data.strava.recent.count || 0} atividades | ${km}km | ${min}min em movimento`)
+  }
+  if (data.trakt?.stats) {
+    L.push(`[TRAKT] ${data.trakt.stats.movies_watched || 0} filmes, ${data.trakt.stats.episodes_watched || 0} episódios, ${data.trakt.stats.shows_watched || 0} séries assistidas`)
+  }
   return L.join('\n') || 'Nenhum dado de redes conectado.'
 }
 
