@@ -24,17 +24,17 @@ ${JSON.stringify(chatHistory, null, 2)}
 
 Baseado nesses dados, gere um JSON com esta estrutura exata:
 {
-  "main_trait": "[rótulo principal em até 4 palavras — é o DESTAQUE em negrito no topo do card. Ex: 'Nerd', 'Rato de academia', 'Cria do Mengão']",
-  "summary_emoji": "[UM único emoji que RESUME a pessoa, exibido ao lado do overall. Ex: 🎮 gamer, 🙏 religioso, 💄 maquiagem, ⚽ futebol, 🎸 rockeiro, 📚 nerd, 🏋️ academia, 🏖️ praia]",
-  "veredict_badge": "Tu é [rótulo de até 6 palavras, impactante, que a pessoa QUEIRA compartilhar]",
+  "main_trait": "[UMA ÚNICA PALAVRA ou apelido curto (máx 2 palavras). NÃO use frases. Ex: 'Nerdão', 'Palmeirense', 'Javeiro', 'Lolzeiro', 'Marombeiro', 'Crente', 'Sertanejo', 'Otaku', 'Low-profile']",
+  "summary_emoji": "[UM único emoji que RESUME a pessoa. Ex: 🎮 gamer, 🙏 religioso, ⚽ futebol, 🎸 rockeiro, 📚 nerd, 🏋️ academia]",
+  "veredict_badge": "[UMA PALAVRA curta e impactante. Ex: 'Nerdola', 'Cria', 'Javeiro', 'Palmeirense', 'Sertanejo']",
   "veredict_text": "[resumo de 2-3 parágrafos analisando a personalidade da pessoa com base nos dados reais, no tom do modo escolhido. Seja específico, cite dados reais que você viu nas redes dela]",
   "overall": "[nota FIFA de 40 a 99 representando o quão 'completa' a pessoa é — 99 = lenda viva, 90+ = elite, 80+ = muito bom, 70+ = bom, 60+ = ok, 50+ = abaixo da média, 40-49 = precisa melhorar]",
   "skills": [
-    { "name": "Nome da skill", "emoji": "🔥", "value": 87 },
-    { "name": "Nome da skill", "emoji": "🧠", "value": 70 },
-    { "name": "Nome da skill", "emoji": "😈", "value": 60 },
-    { "name": "Nome da skill", "emoji": "💪", "value": 45 },
-    { "name": "Nome da skill", "emoji": "🎯", "value": 30 }
+    { "name": "[NOME CURTO, 1-2 palavras máx. Ex: 'Lethal Company', 'Palmeiras', 'Dev', 'Social', 'Academia', 'Sertanejo']", "emoji": "[emoji coerente, NUNCA use 😈]", "value": 87 },
+    { "name": "Nome curto", "emoji": "[emoji coerente]", "value": 70 },
+    { "name": "Nome curto", "emoji": "[emoji coerente]", "value": 60 },
+    { "name": "Nome curto", "emoji": "[emoji coerente]", "value": 45 },
+    { "name": "Nome curto", "emoji": "[emoji coerente]", "value": 30 }
   ],
   "hashtags": ["#nerdola", "#antisocial", "#rockeiro"],
   "summary_short": "[frase ÚNICA e concisa que resume a pessoa no tom do modo. Máximo 30 palavras]",
@@ -85,9 +85,10 @@ Baseado nesses dados, gere um JSON com esta estrutura exata:
 }
 
 Regras IMPORTANTES:
-- main_trait: CURTO (até 4 palavras), é a "classe" da pessoa. Ex: "Nerd", "Rato de academia", "Cria do Mengão", "Kenga Premium", "Otaku fedido"
+- main_trait: CURTO (1 palavra ou apelido de 2 palavras). NADA de frases. Ex: "Nerdão", "Palmeirense", "Javeiro", "Crente"
+- veredict_badge: CURTO também (1-2 palavras). Ex: "Nerdola", "Cria do Verdão", "Javeiro Raiz"
 - overall: nota FIFA de 40 a 99. Seja sincero! Pouca gente merece 99.
-- skills: 5 skills com nome, emoji e valor (0-100). Os valores DEVEM ser baseados nos dados reais.
+- skills: 5 skills com nome CURTO (1-2 palavras), emoji coerente e valor (0-100). Os valores DEVEM ser baseados nos dados reais. NUNCA use emoji 😈.
 - hashtags: 3-5 hashtags estilo Instagram com #, no tom do modo
 - summary_short: UMA frase só, impactante, que capture a essência
 - personal_map: 5 eixos com nomes LEGÍVEIS, valor 0-100 e comentário curto. Os eixos DEVEM refletir os dados reais.
