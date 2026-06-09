@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "src/app/api/chat/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/veredict/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/card/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
