@@ -561,8 +561,11 @@ export async function POST(req: Request) {
       const promptWithRef = buildImagePrompt({ data: getScannedData(s) || s.scanned_data || {}, brief, style, hasReferenceImage: !!baseImageUrl }).prompt
       let usedPrompt = promptWithRef
       try {
+        console.log('[Gemini] Gerando imagem com prompt:', usedPrompt?.slice(0, 150))
         img = await generateCardImage(promptWithRef, baseImageUrl || undefined)
+        console.log('[Gemini] IMAGEM GERADA COM SUCESSO!', img.base64?.length, 'bytes')
       } catch (e1) {
+        console.error('[Gemini] ERRO:', e1 instanceof Error ? e1.message : String(e1))
         imageError = `ref: ${e1 instanceof Error ? e1.message : String(e1)}`
         if (baseImageUrl) {
           // 2ª tentativa: sem referência
@@ -695,7 +698,12 @@ export async function POST(req: Request) {
   if (metaIdx2 >= 0) msgs[metaIdx2] = metaMsg2; else msgs.push(metaMsg2)
 
   const { error: updateErr } = await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', s.id)
-  if (updateErr) console.error('Session update failed:', updateErr.message)
+  if (updateErr) {
+    console.error('Session update failed:', updateErr.message, 'retrying...')
+    // retry once
+    const { error: retryErr } = await supabase.from('chat_sessions').update({ messages: msgs }).eq('id', s.id)
+    if (retryErr) console.error('Session update retry also failed:', retryErr.message)
+  }
 
   const hasQuestion = !!(parsed.question && parsed.question.trim())
   const suggestNow = newTotalAsked >= MAX_INTERACTIONS && !hasQuestion
