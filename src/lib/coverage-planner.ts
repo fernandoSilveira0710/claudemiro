@@ -24,12 +24,13 @@ const NETWORK_PRIORITY: Record<string, number> = {
 }
 
 // Tópicos da tela de seleção (D4)
-const SELECTABLE_TOPICS = ['games', 'animes', 'filmes', 'futebol', 'musica', 'politica', 'religiao', 'signo', 'relacionamento', 'carreira', 'academia', 'internet']
+const SELECTABLE_TOPICS = ['games', 'animes', 'filmes', 'futebol', 'musica', 'politica', 'religiao', 'signo', 'relacionamento', 'carreira', 'academia', 'internet', 'leitura', 'saude']
 
 const TOPIC_LABEL: Record<string, string> = {
   games: 'Games', animes: 'Animes', filmes: 'Filmes/Séries', futebol: 'Futebol',
   musica: 'Música', politica: 'Política', religiao: 'Religião', signo: 'Signo/Espiritualidade',
   relacionamento: 'Relacionamento', carreira: 'Carreira/Trampo', academia: 'Academia/Fitness', internet: 'Tretas da Internet',
+  leitura: 'Leitura/Livros', saude: 'Corrida/Caminhada',
 }
 
 const NETWORK_LABEL: Record<string, string> = {
@@ -119,7 +120,9 @@ export function pickNextSlot(
 // Gera as instruções específicas do slot pra IA escrever a pergunta.
 // `data` é o scanned_data; usamos pra dar contexto real (seguidores, games, etc).
 export function slotInstructions(slot: Slot, data: any, askCount: number): string {
-  const aprofunda = askCount > 0 ? '\n(Já perguntou sobre isso antes — agora APROFUNDE num ângulo diferente, não repita.)' : ''
+  const aprofunda = askCount > 0
+    ? `\n\n⚠️ ATENÇÃO: você JÁ perguntou sobre ${slot.label} antes. NÃO repita a mesma pergunta nem reformule a anterior. Mude COMPLETAMENTE o ângulo (se já perguntou "qual", pergunte "por quê" ou "desde quando" ou um detalhe específico do que ele respondeu). Se não houver ângulo novo genuíno, é melhor não insistir nesse assunto.`
+    : ''
 
   if (slot.type === 'network') {
     return networkInstructions(slot.key, data) + aprofunda
@@ -221,6 +224,10 @@ function topicInstructions(key: string, data: any): string {
       return `TÓPICO: Academia/Fitness. Pergunte se treina e o quê, OU qual objetivo. (Tema sensível tipo "bomba" só se ele abrir.)`
     case 'internet':
       return `TÓPICO: Tretas da Internet. Pergunte qual treta recente ele acompanhou ou achou surreal. Leve.`
+    case 'leitura':
+      return `TÓPICO: Leitura/Livros. Pergunte qual o último livro que leu ou tá lendo, OU o gênero favorito (ficção, fantasia, autoajuda, técnico), OU se lê por prazer ou hábito. UM ângulo.`
+    case 'saude':
+      return `TÓPICO: Corrida/Caminhada. Pergunte se corre, caminha ou pedala e com qual frequência, OU o que motiva (saúde, cabeça, competição). UM ângulo.`
     default:
       return `TÓPICO: ${key}. Faça uma pergunta direta e específica sobre isso.`
   }

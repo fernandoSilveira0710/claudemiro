@@ -627,6 +627,7 @@ export async function POST(req: Request) {
   const msgs = [...(s.messages || []), { role: 'user', content: message }]
   const asked: string[] = pd.askedCategories || []
   const askedQuestions: string[] = pd.askedQuestions || []
+  const usedDataSources: string[] = pd.usedDataSources || []
   const askedSlots: AskedSlot[] = pd.askedSlots || []
   const lastSlotKey: string | null = pd.lastSlotKey || null
   const dataStr = digest(sd)
@@ -685,7 +686,8 @@ export async function POST(req: Request) {
 
   const newAsked = [...asked, reasoning.category].filter(Boolean)
   const newAskedQuestions = [...askedQuestions, parsed.question].filter(Boolean)
-  const newPd = { ...pd, askedCategories: newAsked, askedQuestions: newAskedQuestions, askedSlots: newAskedSlots, lastSlotKey: nextSlot!.key }
+  const newUsedDataSources = [...usedDataSources, normalizeDataSource(reasoning.data_source)].filter(Boolean) as string[]
+  const newPd = { ...pd, askedCategories: newAsked, askedQuestions: newAskedQuestions, usedDataSources: newUsedDataSources, askedSlots: newAskedSlots, lastSlotKey: nextSlot!.key }
 
   // salva meta no array de mensagens (coluna phase_data pode não existir)
   const metaIdx2 = msgs.findIndex((m: any) => m._system)
