@@ -142,22 +142,23 @@ function networkInstructions(key: string, data: any): string {
   switch (key) {
     case 'instagram': {
       const ig = data.instagram?.user || data.instagram || {}
-      const seg = ig.edge_followed_by?.count || ig.follower_count || data.instagram?.follower_count || 0
-      return `REDE: Instagram (onde a maioria vive a "vida enzo"). Seguidores: ${seg} (${followerAngle(seg)}).
+      const seg = ig.followers || ig.edge_followed_by?.count || ig.follower_count || data.instagram?.follower_count || data.instagram?.followers || 0
+      const posts = ig.posts || ig.edge_owner_to_timeline_media?.count || ig.media_count || 0
+      return `REDE: Instagram (onde a maioria vive a "vida enzo"). Seguidores: ${seg} (${followerAngle(seg)}), ${posts} posts.
 Pergunte sobre o que ele consome/posta no Instagram, ou explore a faixa de seguidores. Vá direto.`
     }
     case 'facebook':
       return `REDE: Facebook (vibe mais "tiozão"). Pergunte o que ele ainda faz no Face, ou por que mantém/abandonou. Meio-termo, sem zoar demais.`
     case 'x':
     case 'twitter': {
-      const seg = data.x?.follower_count || data.twitter?.follower_count || 0
-      const tweets = data.x?.tweet_count || data.twitter?.tweet_count || 0
+      const seg = data.x?.followers || data.x?.followers_count || data.x?.follower_count || data.twitter?.followers || data.twitter?.follower_count || 0
+      const tweets = data.x?.tweets || data.x?.statuses_count || data.x?.tweet_count || data.twitter?.tweets || data.twitter?.tweet_count || 0
       return `REDE: X/Twitter (lugar de reclamar, opinar, falar mal). ${seg} seguidores, ${tweets} tweets.
 Pergunte sobre o que ele mais reclama/posta, ou que tipo de assunto o faz tuitar.`
     }
     case 'tiktok': {
-      const seg = data.tiktok?.follower_count || 0
-      const vids = data.tiktok?.video_count || 0
+      const seg = data.tiktok?.followers || data.tiktok?.follower_count || 0
+      const vids = data.tiktok?.videos || data.tiktok?.video_count || 0
       return `REDE: TikTok (terra do vídeo curto/nutella). ${seg} seguidores, ${vids} vídeos.
 Pergunte o que ele consome ali, ou por que (não) posta.`
     }
