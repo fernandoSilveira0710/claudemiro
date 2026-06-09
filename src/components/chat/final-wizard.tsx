@@ -76,8 +76,9 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
   const canUseFrame = (f: typeof frames[number]) => f.plan === 'FREE' || plan === f.plan || plan === 'PRO'
   const handleFrameClick = (f: typeof frames[number]) => { if (canUseFrame(f)) setSelectedFrame(f.type); else onUpgrade() }
 
-  const generateVeredict = async () => {
+  const generateVeredict = async (trackOverride?: TrackInfo | null) => {
     setIsGenerating(true); setStep(4); setThoughts([])
+    const finalTrack = trackOverride !== undefined ? trackOverride : selectedTrack
     try {
       const res = await fetch('/api/chat/thoughts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) })
       if (res.ok && res.body) {
@@ -96,14 +97,14 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
       }
     }
     try {
-      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestVeredict: true, sessionId, frameType: selectedFrame, baseImageUrl: selectedImage, track: selectedTrack }) })
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestVeredict: true, sessionId, frameType: selectedFrame, baseImageUrl: selectedImage, track: finalTrack }) })
       const data = await res.json(); const v = data.veredict || data
       // veredito pronto → abre a PÁGINA INTEIRA de resultado (não um modal)
       if (v?.id || data.veredictId) {
         window.location.href = `/resultado/${v.id || data.veredictId}`
         return
       }
-      setVeredict({ ...v, frame_type: selectedFrame, card_image_url: v?.card_image_url || null, base_image_url: selectedImage, music_track: selectedTrack || v?.music_track })
+      setVeredict({ ...v, frame_type: selectedFrame, card_image_url: v?.card_image_url || null, base_image_url: selectedImage, music_track: finalTrack || v?.music_track })
       await new Promise(r => setTimeout(r, 400)); setShowCard(true)
     } catch (err) { console.error(err); setThoughts(prev => [...prev, '⚠️ Algo deu errado. Tenta de novo.']) }
     setIsGenerating(false)
@@ -264,7 +265,7 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
                       <div className="p-4 rounded-2xl border border-purple-500/20 bg-purple-500/5">
                         <div className="flex items-center gap-3"><span className="text-2xl">🎵</span><div><p className="text-white font-bold text-sm">{resolvedTrack.name}</p><p className="text-[#F3E8FF]/40 text-xs">{resolvedTrack.artist}</p></div><span className="ml-auto text-[10px] text-purple-400">sugestão</span></div>
                       </div>
-                      <button onClick={() => { setSelectedTrack(resolvedTrack); generateVeredict() }} className="w-full p-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors">Usar essa música</button>
+                      <button onClick={() => generateVeredict(resolvedTrack)} className="w-full p-3 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-sm transition-colors">Usar essa música</button>
                       <button onClick={connectSpotifyAndPick} disabled={loadingTrack} className="w-full p-3 rounded-2xl border border-green-500/20 bg-green-500/5 text-center hover:bg-green-500/10 text-sm text-white/80">🔀 Sortear outra</button>
                     </>
                   )}
@@ -273,7 +274,7 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
                     <div className="relative p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 overflow-hidden">
                       <div className="flex items-center gap-3"><span className="text-2xl">🎵</span><div><p className="text-white font-bold text-sm">{resolvedTrack.name}</p><p className="text-[#F3E8FF]/40 text-xs">{resolvedTrack.artist}</p></div><span className="ml-auto bg-gradient-to-r from-amber-400 to-yellow-600 text-[#0D0221] text-[10px] font-black py-0.5 px-2 rounded-full">$</span></div>
                       <p className="text-[10px] text-amber-400/70 mt-2">A música que carregou — incluída no seu pagamento</p>
-                      <button onClick={() => { setSelectedTrack(resolvedTrack); generateVeredict() }} className="w-full mt-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold py-2.5 rounded-xl border border-amber-500/30 text-sm transition-colors">Incluir e gerar</button>
+                      <button onClick={() => generateVeredict(resolvedTrack)} className="w-full mt-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold py-2.5 rounded-xl border border-amber-500/30 text-sm transition-colors">Incluir e gerar</button>
                     </div>
                   )}
 
@@ -285,7 +286,7 @@ export function FinalWizard({ sessionId, plan, socialImages, aiTrack, onClose, o
                   )}
 
                   {/* Seguir sem música — sempre disponível */}
-                  <button onClick={() => { setSelectedTrack(null); generateVeredict() }} className="w-full p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] text-center hover:bg-white/[0.04] transition-colors">
+                  <button onClick={() => generateVeredict(null)} className="w-full p-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] text-center hover:bg-white/[0.04] transition-colors">
                     <p className="text-white font-bold text-sm">Seguir sem música</p><p className="text-[10px] text-[#F3E8FF]/20 mt-0.5">Gratuito</p>
                   </button>
                 </div>
