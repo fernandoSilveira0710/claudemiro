@@ -182,7 +182,7 @@ Pergunte de que tipo de comunidade ele participa, ou (se poucos servidores) pra 
 Escolha UM canal específico e pergunte por que curte / o que assiste dele. NÃO liste todos. Ou pergunte se prefere vídeo longo ou curto.`
     }
     case 'github': {
-      const repos = data.github?.public_repos || 0
+      const repos = data.github?.repos || data.github?.public_repos || 0
       const langs = data.github?.top_languages ? Object.keys(data.github.top_languages).slice(0, 3).join(', ') : ''
       return `REDE: GitHub (dev ou vibe coder?). ${repos} repos públicos. Linguagens: ${langs || 'não informado'}.
 Se 0 repos: pergunte se os projetos são privados e por quê. Senão: que tipo de projeto faz, linguagem favorita.`
